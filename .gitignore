@@ -1,0 +1,17 @@
+__pycache__/
+.DS_Store
+.pytest_cache/
+*.pyc
+.venv/
+.pyinstaller/
+.pip-cache/
+.cache/
+*.egg-info/
+data/ssq_history.csv
+outputs/*.csv
+outputs/*.xlsx
+outputs/*.json
+outputs/*.txt
+build/
+dist/
+*.spec

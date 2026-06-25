@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "ssq-analyzer"
+version = "0.1.0"
+description = "Double Color Ball analysis, entertainment generation, and backtesting CLI"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+gui = ["PySide6>=6.7", "pyinstaller>=6.8"]
+
+[project.scripts]
+ssq = "ssq_analyzer.cli:main"
+ssq-gui = "app.main:main"
+
+[tool.setuptools.packages.find]
+where = ["src", "."]
+include = ["ssq_analyzer*", "app*", "cli*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src", "."]
+testpaths = ["tests"]
