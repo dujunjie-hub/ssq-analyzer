@@ -149,6 +149,7 @@ class AnalyzerService:
         if draws:
             latest = sorted(draws, key=lambda draw: draw.issue)[-1]
             summary_lines.append(f"上一期开奖结果：{latest.issue} 红球 {latest.ticket.red_text()}  蓝球 {latest.ticket.blue_text()}")
+            summary_lines.extend(_previous_prediction_lines(draws, config))
         if config.strategy == "deep-learning":
             summary_lines.append(EXPERIMENTAL_WARNING)
         metadata: dict[str, object] = {"strategy": config.strategy, "seed": config.seed}
@@ -170,6 +171,7 @@ class AnalyzerService:
                 }
             )
 
+        summary_lines.append("本期预测号码：")
         for index, ticket in enumerate(tickets, start=1):
             basis = _ticket_basis(ticket, config)
             summary_lines.append(f"{index}. 红球 {ticket.red_text()}  蓝球 {ticket.blue_text()}  依据：{basis}")
@@ -246,6 +248,29 @@ def _ticket_basis(ticket: Ticket, config: AnalyzerConfig) -> str:
     if config.use_cold:
         parts.append("参考冷号权重")
     return "；".join(parts)
+
+
+def _previous_prediction_lines(draws: list[Draw], config: AnalyzerConfig) -> list[str]:
+    ordered = sorted(draws, key=lambda draw: draw.issue)
+    if len(ordered) < 2:
+        return []
+    latest = ordered[-1]
+    if config.strategy == "liuyao":
+        _, tickets = generate_liuyao_tickets(count=config.count, seed=config.seed)
+    else:
+        tickets = generate_tickets(ordered[:-1], strategy=config.strategy, count=config.count, seed=config.seed)
+    if config.filter_duplicates:
+        tickets = _dedupe_tickets(tickets)
+
+    lines = ["上一期预测号码："]
+    for index, ticket in enumerate(tickets, start=1):
+        red_hits = _red_hit_text(ticket, latest.ticket)
+        blue_hit = latest.ticket.blue_text() if ticket.blue == latest.ticket.blue else "无"
+        lines.append(
+            f"  预测 {index}：红球 {ticket.red_text()}  蓝球 {ticket.blue_text()}；"
+            f"命中红球 {red_hits or '无'}；命中蓝球 {blue_hit}"
+        )
+    return lines
 
 
 def _backtest_detail_lines(results) -> list[str]:

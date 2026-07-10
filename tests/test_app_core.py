@@ -53,6 +53,9 @@ class AppCoreTests(unittest.TestCase):
         self.assertEqual(len(result.rows), 3)
         self.assertTrue(any("加载历史数据：3 期" in message for message in result.logs))
         self.assertIn("上一期开奖结果：2026004", result.summary_text)
+        self.assertIn("上一期预测号码：", result.summary_text)
+        self.assertIn("本期预测号码：", result.summary_text)
+        self.assertIn("命中红球", result.summary_text)
         self.assertIn("红球", result.summary_text)
 
     def test_service_backtest_shows_actual_prediction_and_hit_balls(self):
