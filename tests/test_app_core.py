@@ -52,7 +52,21 @@ class AppCoreTests(unittest.TestCase):
         self.assertEqual(result.rows[0]["strategy"], "balanced")
         self.assertEqual(len(result.rows), 3)
         self.assertTrue(any("加载历史数据：3 期" in message for message in result.logs))
+        self.assertIn("上一期开奖结果：2026004", result.summary_text)
         self.assertIn("红球", result.summary_text)
+
+    def test_service_backtest_shows_actual_prediction_and_hit_balls(self):
+        service = AnalyzerService(draw_loader=sample_draws)
+        config = AnalyzerConfig(command="backtest", strategy="random", count=1, seed=5, window=3)
+
+        result = service.run(config)
+
+        self.assertEqual(len(result.rows), 3)
+        self.assertIn("2026002 开奖", result.summary_text)
+        self.assertIn("预测 1", result.summary_text)
+        self.assertIn("命中红球", result.summary_text)
+        self.assertIn("red_hit_balls", result.rows[0])
+        self.assertIn("blue_hit_ball", result.rows[0])
 
     def test_service_preserves_liuyao_reading_metadata(self):
         service = AnalyzerService(draw_loader=sample_draws)

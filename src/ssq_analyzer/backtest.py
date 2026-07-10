@@ -90,6 +90,8 @@ def backtest_rows(results: list[BacktestResult], strategy: str = "") -> list[dic
                     "ticket_blue": ticket_result.ticket.blue_text(),
                     "actual_red": result.actual.red_text(),
                     "actual_blue": result.actual.blue_text(),
+                    "red_hit_balls": _red_hit_text(ticket_result.ticket, result.actual),
+                    "blue_hit_ball": result.actual.blue_text() if ticket_result.blue_hit else "",
                     "red_hits": ticket_result.red_hits,
                     "blue_hit": "yes" if ticket_result.blue_hit else "no",
                     "tier": ticket_result.tier,
@@ -97,6 +99,11 @@ def backtest_rows(results: list[BacktestResult], strategy: str = "") -> list[dic
                 }
             )
     return rows
+
+
+def _red_hit_text(ticket: Ticket, actual: Ticket) -> str:
+    hits = sorted(set(ticket.red) & set(actual.red))
+    return " ".join(f"{ball:02d}" for ball in hits)
 
 
 def summarize_backtest(results: list[BacktestResult], strategy: str) -> dict[str, object]:

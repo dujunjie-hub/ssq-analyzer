@@ -144,6 +144,9 @@ class AnalyzerService:
 
         rows: list[dict[str, object]] = []
         summary_lines = [DISCLAIMER]
+        if draws:
+            latest = sorted(draws, key=lambda draw: draw.issue)[-1]
+            summary_lines.append(f"上一期开奖结果：{latest.issue} 红球 {latest.ticket.red_text()}  蓝球 {latest.ticket.blue_text()}")
         if config.strategy == "deep-learning":
             summary_lines.append(EXPERIMENTAL_WARNING)
         metadata: dict[str, object] = {"strategy": config.strategy, "seed": config.seed}
@@ -200,7 +203,7 @@ class AnalyzerService:
         results = run_backtest(draws, strategy=config.strategy, count=config.count, seed=config.seed, window=config.window)
         rows = backtest_rows(results, strategy=config.strategy)
         wins = sum(1 for row in rows if row["tier"] != "none")
-        summary = "\n".join([DISCLAIMER, f"回测期数：{len(results)}，每期生成 {config.count} 组", f"命中奖项记录：{wins}"])
+        summary = "\n".join([DISCLAIMER, f"回测期数：{len(results)}，每期生成 {config.count} 组", *_backtest_detail_lines(results), f"命中奖项记录：{wins}"])
         return AnalyzerResult("backtest", "策略回测", rows, logs, summary, {"strategy": config.strategy, "wins": wins})
 
     def _compare(self, draws: list[Draw], config: AnalyzerConfig, logs: list[str]) -> AnalyzerResult:
@@ -243,10 +246,28 @@ def _ticket_basis(ticket: Ticket, config: AnalyzerConfig) -> str:
     return "；".join(parts)
 
 
+def _backtest_detail_lines(results) -> list[str]:
+    lines: list[str] = []
+    for result in results:
+        lines.append(f"{result.issue} 开奖：红球 {result.actual.red_text()}  蓝球 {result.actual.blue_text()}")
+        for index, ticket_result in enumerate(result.generated_tickets, start=1):
+            red_hits = _red_hit_text(ticket_result.ticket, result.actual)
+            blue_hit = result.actual.blue_text() if ticket_result.blue_hit else "无"
+            lines.append(
+                f"  预测 {index}：红球 {ticket_result.ticket.red_text()}  蓝球 {ticket_result.ticket.blue_text()}；"
+                f"命中红球 {red_hits or '无'}；命中蓝球 {blue_hit}"
+            )
+    return lines
+
+
+def _red_hit_text(ticket: Ticket, actual: Ticket) -> str:
+    hits = sorted(set(ticket.red) & set(actual.red))
+    return " ".join(f"{ball:02d}" for ball in hits)
+
+
 def _strategy_summary_text(rows: list[dict[str, object]], count: int) -> str:
     lines = [DISCLAIMER, EXPERIMENTAL_WARNING, LIUYAO_WARNING, f"策略对比：{len(rows)} 个策略，每期生成 {count} 组"]
     for row in rows:
         wins = sum(int(row[f"tier_{tier}"]) for tier in ["first", "second", "third", "fourth", "fifth", "sixth"])
         lines.append(f"{row['strategy']}: 票数 {row['total_tickets']}，蓝球命中率 {row['blue_hit_rate']}，中奖记录 {wins}")
     return "\n".join(lines)
-
