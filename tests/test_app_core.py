@@ -68,6 +68,18 @@ class AppCoreTests(unittest.TestCase):
         self.assertIn("red_hit_balls", result.rows[0])
         self.assertIn("blue_hit_ball", result.rows[0])
 
+    def test_backtest_window_uses_latest_draws_not_history_limit(self):
+        draws = [
+            Draw(f"2026{index:03d}", date(2026, 1, index), (1, 2, 3, 4, 5, 6), 1)
+            for index in range(1, 11)
+        ]
+        service = AnalyzerService(draw_loader=lambda: draws)
+        config = AnalyzerConfig(command="backtest", strategy="random", count=1, seed=5, window=5, history_limit=5)
+
+        result = service.run(config)
+
+        self.assertEqual([row["issue"] for row in result.rows], ["2026006", "2026007", "2026008", "2026009", "2026010"])
+
     def test_service_preserves_liuyao_reading_metadata(self):
         service = AnalyzerService(draw_loader=sample_draws)
         config = AnalyzerConfig(command="generate", strategy="liuyao", count=2, seed=9)

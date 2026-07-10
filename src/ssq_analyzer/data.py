@@ -1,7 +1,9 @@
 from __future__ import annotations
 
 import csv
+import os
 import re
+import sys
 import urllib.error
 import urllib.request
 from datetime import date
@@ -12,7 +14,7 @@ from ssq_analyzer.models import Draw
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = PROJECT_ROOT / "data"
-DEFAULT_HISTORY_PATH = DATA_DIR / "ssq_history.csv"
+DEFAULT_HISTORY_PATH = Path(os.environ.get("SSQ_HISTORY_PATH", DATA_DIR / "ssq_history.csv"))
 DEFAULT_FETCH_URL = "https://datachart.500.com/ssq/history/newinc/history.php?start=1&end=99999"
 
 
@@ -30,7 +32,8 @@ SAMPLE_DRAWS = [
 ]
 
 
-def load_draws(path: Path = DEFAULT_HISTORY_PATH) -> list[Draw]:
+def load_draws(path: Path | None = None) -> list[Draw]:
+    path = path or _default_history_path()
     if not path.exists():
         return list(SAMPLE_DRAWS)
 
@@ -49,7 +52,8 @@ def load_draws(path: Path = DEFAULT_HISTORY_PATH) -> list[Draw]:
     return sorted(draws, key=lambda draw: draw.issue)
 
 
-def save_draws(draws: list[Draw], path: Path = DEFAULT_HISTORY_PATH) -> Path:
+def save_draws(draws: list[Draw], path: Path | None = None) -> Path:
+    path = path or _default_history_path()
     path.parent.mkdir(parents=True, exist_ok=True)
     with path.open("w", encoding="utf-8", newline="") as file:
         writer = csv.DictWriter(
@@ -72,6 +76,17 @@ def save_draws(draws: list[Draw], path: Path = DEFAULT_HISTORY_PATH) -> Path:
                 }
             )
     return path
+
+
+def _default_history_path() -> Path:
+    if "SSQ_HISTORY_PATH" in os.environ:
+        return Path(os.environ["SSQ_HISTORY_PATH"])
+    for start in (Path(sys.executable).resolve(), Path(__file__).resolve()):
+        for parent in start.parents:
+            candidate = parent / "data" / "ssq_history.csv"
+            if candidate.exists():
+                return candidate
+    return DEFAULT_HISTORY_PATH
 
 
 def fetch_draws(url: str = DEFAULT_FETCH_URL) -> list[Draw]:

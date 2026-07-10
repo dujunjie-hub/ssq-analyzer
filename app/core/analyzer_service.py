@@ -67,7 +67,7 @@ class AnalyzerService:
             if config.command == "fetch":
                 return self._fetch(config, logs, log)
 
-            draws = self._limited_draws(config.history_limit)
+            draws = self._draws_for_config(config)
             log(f"加载历史数据：{len(draws)} 期")
             log(format_next_draw_time())
 
@@ -84,10 +84,12 @@ class AnalyzerService:
             log(f"执行失败：{error}")
             raise
 
-    def _limited_draws(self, history_limit: int) -> list[Draw]:
+    def _draws_for_config(self, config: AnalyzerConfig) -> list[Draw]:
         draws = sorted(self._draw_loader(), key=lambda draw: draw.issue)
-        if history_limit and history_limit > 0:
-            return draws[-history_limit:]
+        if config.command in {"backtest", "compare"}:
+            return draws
+        if config.history_limit and config.history_limit > 0:
+            return draws[-config.history_limit :]
         return draws
 
     def _fetch(self, config: AnalyzerConfig, logs: list[str], log: LogEmitter) -> AnalyzerResult:

@@ -2,6 +2,7 @@ import urllib.error
 
 import pytest
 
+from ssq_analyzer import data
 from ssq_analyzer.data import DataFetchError, fetch_draws, parse_500_history_html
 
 
@@ -52,3 +53,17 @@ def test_fetch_draws_wraps_dns_failure_in_friendly_error(monkeypatch):
 
     with pytest.raises(DataFetchError, match="无法访问开奖数据源"):
         fetch_draws()
+
+
+def test_default_history_path_finds_repo_data_from_packaged_app(monkeypatch, tmp_path):
+    history = tmp_path / "data" / "ssq_history.csv"
+    history.parent.mkdir()
+    history.write_text("issue,date,red_1,red_2,red_3,red_4,red_5,red_6,blue\n", encoding="utf-8")
+    app_exe = tmp_path / "dist" / "SSQ Analyzer.app" / "Contents" / "MacOS" / "SSQ Analyzer"
+    app_exe.parent.mkdir(parents=True)
+    app_exe.write_text("", encoding="utf-8")
+
+    monkeypatch.delenv("SSQ_HISTORY_PATH", raising=False)
+    monkeypatch.setattr(data.sys, "executable", str(app_exe))
+
+    assert data._default_history_path() == history
