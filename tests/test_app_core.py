@@ -39,8 +39,10 @@ class AppCoreTests(unittest.TestCase):
         self.assertIn("filter_duplicates", names)
         self.assertIn("balanced", schema.field("strategy").choices)
         self.assertIn("liuyao", schema.field("strategy").choices)
+        self.assertIn("liuyao-advanced", schema.field("strategy").choices)
         self.assertEqual(schema.field("command").choice_label("generate"), "生成推荐号码")
         self.assertEqual(schema.field("strategy").choice_label("balanced"), "均衡模型")
+        self.assertEqual(schema.field("strategy").choice_label("liuyao-advanced"), "高级六爻娱乐模型")
 
     def test_service_generates_structured_tickets_without_subprocess(self):
         service = AnalyzerService(draw_loader=sample_draws)
@@ -93,6 +95,17 @@ class AppCoreTests(unittest.TestCase):
         self.assertTrue(result.metadata["primary_hexagram"])
         self.assertIn("本卦", result.summary_text)
         self.assertIn("moving_lines", result.rows[0])
+
+    def test_service_shows_advanced_liuyao_context(self):
+        service = AnalyzerService(draw_loader=sample_draws)
+        config = AnalyzerConfig(command="generate", strategy="liuyao-advanced", count=1, seed=19930810)
+
+        result = service.run(config)
+
+        self.assertEqual(len(result.rows), 1)
+        self.assertEqual(result.metadata["use_god"], "妻财")
+        self.assertIn("世应：", result.summary_text)
+        self.assertIn("纳甲六亲：", result.summary_text)
 
     def test_formatter_exports_txt_csv_and_json(self):
         service = AnalyzerService(draw_loader=sample_draws)

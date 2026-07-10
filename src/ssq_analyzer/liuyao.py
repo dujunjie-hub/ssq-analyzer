@@ -95,6 +95,14 @@ class LiuyaoReading:
     changed_hexagram: str
     red_weights: tuple[float, ...]
     blue_weights: tuple[float, ...]
+    najia_lines: tuple[str, ...] = ()
+    line_elements: tuple[str, ...] = ()
+    six_relatives: tuple[str, ...] = ()
+    world_line: int = 0
+    responding_line: int = 0
+    use_god: str = ""
+    hidden_hexagram: str = ""
+    opposite_hexagram: str = ""
 
     @property
     def moving_lines_text(self) -> str:
@@ -109,6 +117,10 @@ class LiuyaoReading:
 
 def cast_liuyao(rng: random.Random) -> LiuyaoReading:
     return reading_from_lines(tuple(rng.choice((6, 7, 8, 9)) for _ in range(6)))
+
+
+def cast_advanced_liuyao(rng: random.Random) -> LiuyaoReading:
+    return advanced_reading_from_lines(tuple(rng.choice((6, 7, 8, 9)) for _ in range(6)))
 
 
 def reading_from_lines(line_values: tuple[int, ...]) -> LiuyaoReading:
@@ -132,6 +144,41 @@ def reading_from_lines(line_values: tuple[int, ...]) -> LiuyaoReading:
         changed_hexagram=changed_hexagram,
         red_weights=red_weights,
         blue_weights=blue_weights,
+    )
+
+
+def advanced_reading_from_lines(line_values: tuple[int, ...]) -> LiuyaoReading:
+    reading = reading_from_lines(line_values)
+    primary_bits = tuple(value % 2 for value in line_values)
+    lower = TRIGRAMS[primary_bits[:3]]
+    upper = TRIGRAMS[primary_bits[3:]]
+    najia_lines = NAJIA[lower][0] + NAJIA[upper][1]
+    line_elements = tuple(BRANCH_ELEMENTS[line[-1]] for line in najia_lines)
+    palace_element = TRIGRAM_ELEMENTS[upper]
+    six_relatives = tuple(_six_relative(palace_element, element) for element in line_elements)
+    world_line = reading.primary_number % 6 or 6
+    responding_line = (world_line + 2) % 6 + 1
+    hidden_number, hidden_hexagram = _resolve_hexagram((primary_bits[1], primary_bits[2], primary_bits[3], primary_bits[2], primary_bits[3], primary_bits[4]))
+    opposite_number, opposite_hexagram = _resolve_hexagram(tuple(1 - bit for bit in primary_bits))
+    red_weights = _advanced_ball_weights(33, reading.red_weights, najia_lines, line_elements, six_relatives, world_line, responding_line, reading.moving_lines)
+    blue_weights = _advanced_ball_weights(16, reading.blue_weights, najia_lines, line_elements, six_relatives, world_line, responding_line, reading.moving_lines)
+    return LiuyaoReading(
+        line_values=reading.line_values,
+        moving_lines=reading.moving_lines,
+        primary_number=reading.primary_number,
+        primary_hexagram=reading.primary_hexagram,
+        changed_number=reading.changed_number,
+        changed_hexagram=reading.changed_hexagram,
+        red_weights=red_weights,
+        blue_weights=blue_weights,
+        najia_lines=najia_lines,
+        line_elements=line_elements,
+        six_relatives=six_relatives,
+        world_line=world_line,
+        responding_line=responding_line,
+        use_god="妻财",
+        hidden_hexagram=f"{hidden_number} {hidden_hexagram}",
+        opposite_hexagram=f"{opposite_number} {opposite_hexagram}",
     )
 
 
@@ -171,4 +218,88 @@ def _ball_weights(
         if ball % 2 == primary_number % 2:
             weight += 0.75
         weights.append(weight)
+    return tuple(weights)
+
+
+TRIGRAM_ELEMENTS = {
+    "乾": "金",
+    "兑": "金",
+    "离": "火",
+    "震": "木",
+    "巽": "木",
+    "坎": "水",
+    "艮": "土",
+    "坤": "土",
+}
+
+NAJIA = {
+    "乾": (("甲子", "甲寅", "甲辰"), ("壬午", "壬申", "壬戌")),
+    "坤": (("乙未", "乙巳", "乙卯"), ("癸丑", "癸亥", "癸酉")),
+    "震": (("庚子", "庚寅", "庚辰"), ("庚午", "庚申", "庚戌")),
+    "巽": (("辛丑", "辛亥", "辛酉"), ("辛未", "辛巳", "辛卯")),
+    "坎": (("戊寅", "戊辰", "戊午"), ("戊申", "戊戌", "戊子")),
+    "离": (("己卯", "己丑", "己亥"), ("己酉", "己未", "己巳")),
+    "艮": (("丙辰", "丙午", "丙申"), ("丙戌", "丙子", "丙寅")),
+    "兑": (("丁巳", "丁卯", "丁丑"), ("丁亥", "丁酉", "丁未")),
+}
+
+BRANCH_ELEMENTS = {
+    "子": "水",
+    "亥": "水",
+    "寅": "木",
+    "卯": "木",
+    "巳": "火",
+    "午": "火",
+    "申": "金",
+    "酉": "金",
+    "辰": "土",
+    "戌": "土",
+    "丑": "土",
+    "未": "土",
+}
+
+BRANCH_NUMBERS = {branch: index for index, branch in enumerate("子丑寅卯辰巳午未申酉戌亥", start=1)}
+GENERATES = {"木": "火", "火": "土", "土": "金", "金": "水", "水": "木"}
+CONTROLS = {"木": "土", "土": "水", "水": "火", "火": "金", "金": "木"}
+
+
+def _six_relative(palace_element: str, line_element: str) -> str:
+    if palace_element == line_element:
+        return "兄弟"
+    if GENERATES[palace_element] == line_element:
+        return "子孙"
+    if GENERATES[line_element] == palace_element:
+        return "父母"
+    if CONTROLS[palace_element] == line_element:
+        return "妻财"
+    return "官鬼"
+
+
+def _advanced_ball_weights(
+    maximum: int,
+    base_weights: tuple[float, ...],
+    najia_lines: tuple[str, ...],
+    line_elements: tuple[str, ...],
+    six_relatives: tuple[str, ...],
+    world_line: int,
+    responding_line: int,
+    moving_lines: tuple[int, ...],
+) -> tuple[float, ...]:
+    anchors = [((BRANCH_NUMBERS[line[-1]] + position * 3) % maximum) + 1 for position, line in enumerate(najia_lines, start=1)]
+    weights = list(base_weights)
+    for ball in range(1, maximum + 1):
+        for position, anchor in enumerate(anchors, start=1):
+            distance = min(abs(ball - anchor), maximum - abs(ball - anchor))
+            influence = 1.5
+            if position in moving_lines:
+                influence += 3.0
+            if position in {world_line, responding_line}:
+                influence += 2.0
+            if six_relatives[position - 1] == "妻财":
+                influence += 3.0
+            elif six_relatives[position - 1] == "子孙":
+                influence += 1.5
+            if line_elements[position - 1] in {"金", "水"}:
+                influence += 0.5
+            weights[ball - 1] += influence / (1 + distance)
     return tuple(weights)

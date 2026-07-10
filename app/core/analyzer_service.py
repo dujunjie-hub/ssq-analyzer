@@ -7,7 +7,7 @@ from typing import Callable
 from ssq_analyzer.backtest import backtest_rows, compare_strategies, run_backtest
 from ssq_analyzer.cli import DISCLAIMER, EXPERIMENTAL_WARNING, LIUYAO_WARNING, _top_items
 from ssq_analyzer.data import DEFAULT_HISTORY_PATH, DataFetchError, fetch_draws, load_draws, save_draws
-from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_liuyao_tickets, generate_tickets
+from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_advanced_liuyao_tickets, generate_liuyao_tickets, generate_tickets
 from ssq_analyzer.models import Draw, Ticket
 from ssq_analyzer.schedule import format_next_draw_time
 from ssq_analyzer.stats import analysis_rows, analyze_draws
@@ -139,6 +139,8 @@ class AnalyzerService:
         reading = None
         if config.strategy == "liuyao":
             reading, tickets = generate_liuyao_tickets(count=config.count, seed=config.seed)
+        elif config.strategy == "liuyao-advanced":
+            reading, tickets = generate_advanced_liuyao_tickets(count=config.count, seed=config.seed)
         else:
             tickets = generate_tickets(draws, strategy=config.strategy, count=config.count, seed=config.seed)
         if config.filter_duplicates:
@@ -160,6 +162,7 @@ class AnalyzerService:
                     f"本卦：{reading.primary_number} {reading.primary_hexagram}",
                     f"动爻：{reading.moving_lines_text}",
                     f"变卦：{reading.changed_number} {reading.changed_hexagram}",
+                    *_advanced_liuyao_lines(reading),
                 ]
             )
             metadata.update(
@@ -168,6 +171,9 @@ class AnalyzerService:
                     "changed_hexagram": reading.changed_hexagram,
                     "moving_lines": reading.moving_lines_text,
                     "line_values": reading.line_values_text,
+                    "use_god": reading.use_god,
+                    "world_line": reading.world_line,
+                    "responding_line": reading.responding_line,
                 }
             )
 
@@ -187,6 +193,9 @@ class AnalyzerService:
                     "changed_hexagram": "" if reading is None else reading.changed_hexagram,
                     "moving_lines": "" if reading is None else reading.moving_lines_text,
                     "line_values": "" if reading is None else reading.line_values_text,
+                    "use_god": "" if reading is None else reading.use_god,
+                    "world_line": "" if reading is None else reading.world_line,
+                    "responding_line": "" if reading is None else reading.responding_line,
                 }
             )
         return AnalyzerResult(
@@ -211,7 +220,7 @@ class AnalyzerService:
         return AnalyzerResult("backtest", "策略回测", rows, logs, summary, {"strategy": config.strategy, "wins": wins})
 
     def _compare(self, draws: list[Draw], config: AnalyzerConfig, logs: list[str]) -> AnalyzerResult:
-        strategies = ["balanced", "hot", "cold", "omission", "recent", "ensemble", "deep-learning", "liuyao"]
+        strategies = ["balanced", "hot", "cold", "omission", "recent", "ensemble", "deep-learning", "liuyao", "liuyao-advanced"]
         rows = compare_strategies(draws, strategies=strategies, count=config.count, seed=config.seed, window=config.window)
         return AnalyzerResult("compare", "策略对比", rows, logs, _strategy_summary_text(rows, config.count), {"strategies": strategies})
 
@@ -257,6 +266,8 @@ def _previous_prediction_lines(draws: list[Draw], config: AnalyzerConfig) -> lis
     latest = ordered[-1]
     if config.strategy == "liuyao":
         _, tickets = generate_liuyao_tickets(count=config.count, seed=config.seed)
+    elif config.strategy == "liuyao-advanced":
+        _, tickets = generate_advanced_liuyao_tickets(count=config.count, seed=config.seed)
     else:
         tickets = generate_tickets(ordered[:-1], strategy=config.strategy, count=config.count, seed=config.seed)
     if config.filter_duplicates:
@@ -271,6 +282,22 @@ def _previous_prediction_lines(draws: list[Draw], config: AnalyzerConfig) -> lis
             f"命中红球 {red_hits or '无'}；命中蓝球 {blue_hit}"
         )
     return lines
+
+
+def _advanced_liuyao_lines(reading) -> list[str]:
+    if not reading.use_god:
+        return []
+    najia = "；".join(
+        f"{index + 1}:{line}/{element}/{relative}"
+        for index, (line, element, relative) in enumerate(zip(reading.najia_lines, reading.line_elements, reading.six_relatives))
+    )
+    return [
+        f"世应：世爻 {reading.world_line}，应爻 {reading.responding_line}",
+        f"用神：{reading.use_god}",
+        f"互卦：{reading.hidden_hexagram}",
+        f"错卦：{reading.opposite_hexagram}",
+        f"纳甲六亲：{najia}",
+    ]
 
 
 def _backtest_detail_lines(results) -> list[str]:

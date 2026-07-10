@@ -30,7 +30,8 @@ echo "5) omission       遗漏：偏向当前遗漏较高的号码"
 echo "6) recent         近期：偏向最近开奖更活跃的号码"
 echo "7) deep-learning  实验：轻量神经打分器"
 echo "8) liuyao         玄学：一次起卦生成 5 组娱乐号码"
-echo "9) random         随机：纯随机"
+echo "9) liuyao-advanced 高级六爻：纳甲、世应、六亲、用神"
+echo "10) random        随机：纯随机"
 echo
 read -r -p "输入编号，直接回车默认 1： " choice
 
@@ -43,7 +44,8 @@ case "${choice:-1}" in
   6) strategy="recent" ;;
   7) strategy="deep-learning" ;;
   8) strategy="liuyao" ;;
-  9) strategy="random" ;;
+  9) strategy="liuyao-advanced" ;;
+  10) strategy="random" ;;
   *)
     echo "无效选择：$choice" >&2
     exit 2

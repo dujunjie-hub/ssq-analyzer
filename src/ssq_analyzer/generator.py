@@ -4,7 +4,7 @@ import random
 from collections.abc import Sequence
 
 from ssq_analyzer.deep_learning import ExperimentalNeuralScorer
-from ssq_analyzer.liuyao import LiuyaoReading, cast_liuyao
+from ssq_analyzer.liuyao import LiuyaoReading, cast_advanced_liuyao, cast_liuyao
 from ssq_analyzer.models import BLUE_RANGE, RED_RANGE, Draw, Ticket
 from ssq_analyzer.stats import analyze_draws
 
@@ -12,7 +12,7 @@ from ssq_analyzer.stats import analyze_draws
 DEFAULT_TICKET_COUNT = 5
 TRANSPARENT_STRATEGIES = {"random", "weighted", "balanced", "hot", "cold", "omission", "recent", "ensemble"}
 EXPERIMENTAL_STRATEGIES = {"deep-learning"}
-MYSTIC_STRATEGIES = {"liuyao"}
+MYSTIC_STRATEGIES = {"liuyao", "liuyao-advanced"}
 STRATEGIES = TRANSPARENT_STRATEGIES | EXPERIMENTAL_STRATEGIES | MYSTIC_STRATEGIES
 
 
@@ -34,6 +34,8 @@ def generate_tickets(
         return _deep_learning_tickets(history, count, rng)
     if strategy == "liuyao":
         return generate_liuyao_tickets(count=count, seed=seed)[1]
+    if strategy == "liuyao-advanced":
+        return generate_advanced_liuyao_tickets(count=count, seed=seed)[1]
 
     tickets: list[Ticket] = []
     while len(tickets) < count:
@@ -131,6 +133,21 @@ def generate_liuyao_tickets(count: int = DEFAULT_TICKET_COUNT, seed: int | None 
         raise ValueError("count must be greater than 0")
     rng = random.Random(seed)
     reading = cast_liuyao(rng)
+    tickets = [
+        Ticket(
+            red=tuple(sorted(_weighted_unique(list(RED_RANGE), reading.red_weights, 6, rng))),
+            blue=_weighted_one(list(BLUE_RANGE), reading.blue_weights, rng),
+        )
+        for _ in range(count)
+    ]
+    return reading, tickets
+
+
+def generate_advanced_liuyao_tickets(count: int = DEFAULT_TICKET_COUNT, seed: int | None = None) -> tuple[LiuyaoReading, list[Ticket]]:
+    if count < 1:
+        raise ValueError("count must be greater than 0")
+    rng = random.Random(seed)
+    reading = cast_advanced_liuyao(rng)
     tickets = [
         Ticket(
             red=tuple(sorted(_weighted_unique(list(RED_RANGE), reading.red_weights, 6, rng))),

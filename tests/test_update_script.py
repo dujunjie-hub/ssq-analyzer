@@ -61,6 +61,28 @@ def test_update_generate_script_can_select_liuyao_without_network():
     assert result.stdout.count("红球") == 5
 
 
+def test_update_generate_script_can_select_advanced_liuyao_without_network():
+    result = subprocess.run(
+        ["bash", str(SCRIPT_PATH)],
+        input="9\nn\n",
+        capture_output=True,
+        text=True,
+        cwd=PROJECT_ROOT,
+        env={
+            **os.environ,
+            "SSQ_FETCH_COMMAND": "true",
+            "SSQ_GENERATE_COMMAND": "ssq generate",
+            "SSQ_SEED": "19930810",
+        },
+        timeout=20,
+    )
+
+    assert result.returncode == 0, result.stderr
+    assert "9) liuyao-advanced" in result.stdout
+    assert "已选择策略：liuyao-advanced" in result.stdout
+    assert "用神：妻财" in result.stdout
+
+
 def test_update_generate_script_uses_cached_history_when_fetch_fails(tmp_path):
     history_path = tmp_path / "ssq_history.csv"
     history_path.write_text("cached history", encoding="utf-8")

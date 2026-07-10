@@ -7,7 +7,7 @@ from pathlib import Path
 from ssq_analyzer.backtest import backtest_rows, compare_strategies, run_backtest
 from ssq_analyzer.data import DEFAULT_HISTORY_PATH, DataFetchError, fetch_draws, load_draws, save_draws
 from ssq_analyzer.exporters import export_rows
-from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_liuyao_tickets, generate_tickets
+from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_advanced_liuyao_tickets, generate_liuyao_tickets, generate_tickets
 from ssq_analyzer.schedule import format_next_draw_time
 from ssq_analyzer.stats import analysis_rows, analyze_draws
 
@@ -96,6 +96,8 @@ def _handle_generate(args: argparse.Namespace) -> int:
     reading = None
     if args.strategy == "liuyao":
         reading, tickets = generate_liuyao_tickets(count=args.count, seed=args.seed)
+    elif args.strategy == "liuyao-advanced":
+        reading, tickets = generate_advanced_liuyao_tickets(count=args.count, seed=args.seed)
     else:
         tickets = generate_tickets(draws, strategy=args.strategy, count=args.count, seed=args.seed)
     print(DISCLAIMER)
@@ -107,6 +109,12 @@ def _handle_generate(args: argparse.Namespace) -> int:
         print(f"本卦：{reading.primary_number} {reading.primary_hexagram}")
         print(f"动爻：{reading.moving_lines_text}")
         print(f"变卦：{reading.changed_number} {reading.changed_hexagram}")
+        if reading.use_god:
+            print(f"世应：世爻 {reading.world_line}，应爻 {reading.responding_line}")
+            print(f"用神：{reading.use_god}")
+            print(f"互卦：{reading.hidden_hexagram}")
+            print(f"错卦：{reading.opposite_hexagram}")
+            print("纳甲六亲：" + "；".join(f"{index + 1}:{line}/{relative}" for index, (line, relative) in enumerate(zip(reading.najia_lines, reading.six_relatives))))
     rows = []
     for index, ticket in enumerate(tickets, start=1):
         print(f"{index}. 红球 {ticket.red_text()}  蓝球 {ticket.blue_text()}")
@@ -122,6 +130,9 @@ def _handle_generate(args: argparse.Namespace) -> int:
                 "changed_hexagram": "" if reading is None else reading.changed_hexagram,
                 "moving_lines": "" if reading is None else reading.moving_lines_text,
                 "line_values": "" if reading is None else reading.line_values_text,
+                "use_god": "" if reading is None else reading.use_god,
+                "world_line": "" if reading is None else reading.world_line,
+                "responding_line": "" if reading is None else reading.responding_line,
             }
         )
     _export_if_requested(rows, args)
@@ -159,7 +170,7 @@ def _handle_backtest(args: argparse.Namespace) -> int:
 
 def _handle_compare(args: argparse.Namespace) -> int:
     draws = load_draws()
-    strategies = ["balanced", "hot", "cold", "omission", "recent", "ensemble", "deep-learning", "liuyao"]
+    strategies = ["balanced", "hot", "cold", "omission", "recent", "ensemble", "deep-learning", "liuyao", "liuyao-advanced"]
     rows = compare_strategies(draws, strategies=strategies, count=args.count, seed=args.seed, window=args.window)
     print(DISCLAIMER)
     print(format_next_draw_time())

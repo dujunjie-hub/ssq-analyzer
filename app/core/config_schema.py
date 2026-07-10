@@ -75,6 +75,7 @@ def default_schema() -> ConfigSchema:
                     "ensemble": "综合模型",
                     "hot": "热号模型",
                     "liuyao": "六爻娱乐模型",
+                    "liuyao-advanced": "高级六爻娱乐模型",
                     "omission": "遗漏模型",
                     "random": "随机模型",
                     "recent": "近期活跃模型",

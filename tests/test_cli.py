@@ -95,6 +95,17 @@ def test_generate_liuyao_prints_and_exports_reading_metadata(capsys, tmp_path):
     assert "changed_hexagram" in exported
 
 
+def test_generate_advanced_liuyao_prints_traditional_context(capsys):
+    exit_code = main(["generate", "--strategy", "liuyao-advanced", "--seed", "19930810", "--count", "1"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "世应：" in output
+    assert "用神：妻财" in output
+    assert "纳甲六亲：" in output
+    assert output.count("红球") == 1
+
+
 def test_fetch_network_failure_returns_friendly_error_without_traceback(monkeypatch, capsys):
     def fail_fetch():
         raise DataFetchError("无法访问开奖数据源：DNS 解析失败")

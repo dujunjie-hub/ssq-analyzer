@@ -32,7 +32,7 @@ ssq generate --strategy deep-learning --seed 9
 
 ## 常用参数
 
-- `--strategy`：选号策略。可选值包括 `random`、`weighted`、`balanced`、`hot`、`cold`、`omission`、`recent`、`ensemble`、`deep-learning`、`liuyao`。
+- `--strategy`：选号策略。可选值包括 `random`、`weighted`、`balanced`、`hot`、`cold`、`omission`、`recent`、`ensemble`、`deep-learning`、`liuyao`、`liuyao-advanced`。
 - `--count`：每次生成几组号码，默认是 `5`。
 - `--seed`：随机种子。设置后，同样的数据和参数会生成相同结果，方便复现。
 - `--format`：导出格式，可选 `csv` 或 `xlsx`。
@@ -66,7 +66,8 @@ ssq generate --strategy deep-learning --seed 9
 6) recent         近期：偏向最近开奖更活跃的号码
 7) deep-learning  实验：轻量神经打分器
 8) liuyao         玄学：一次起卦生成 5 组娱乐号码
-9) random         随机：纯随机
+9) liuyao-advanced 高级六爻：纳甲、世应、六亲、用神
+10) random        随机：纯随机
 ```
 
 如果想固定随机种子或生成组数，可以这样运行：
@@ -160,6 +161,19 @@ ssq generate --strategy liuyao --seed 9
 5. 红球 01 02 10 13 23 31  蓝球 13
 ```
 
+### `generate --strategy liuyao-advanced --seed 9`
+
+```bash
+ssq generate --strategy liuyao-advanced --seed 9
+```
+
+含义：
+
+- 使用高级六爻娱乐模型。
+- 在本卦、动爻、变卦之外，额外显示简化纳甲、五行、六亲、世应、用神、互卦和错卦。
+- 默认用“妻财”为求财/中奖类用神，并把财爻、子孙爻、动爻、世应爻相关号码提高权重。
+- 它仍然只是娱乐参考，不属于传统断卦服务，也不代表中奖优势。
+
 ### `analyze`
 
 分析历史开奖数据，输出红球和蓝球的频率、遗漏等统计。
@@ -216,7 +230,7 @@ ssq compare --seed 9 --format csv
 
 含义：
 
-- 对比 `balanced`、`hot`、`cold`、`omission`、`recent`、`ensemble`、`deep-learning`。
+- 对比 `balanced`、`hot`、`cold`、`omission`、`recent`、`ensemble`、`deep-learning`、`liuyao`、`liuyao-advanced`。
 - 每个策略默认每期生成 5 组号码。
 - 输出总票数、蓝球命中率、中奖等级分布和红球命中分布。
 - 默认导出到 `outputs/compare.csv`。
@@ -261,6 +275,7 @@ ssq fetch --output data/ssq_history.csv
 娱乐策略：
 
 - `liuyao`：一次随机起卦，显示本卦、动爻和变卦，再由同一卦象生成 5 组号码。它不是传统断卦服务，也没有科学预测能力。
+- `liuyao-advanced`：在六爻基础上增加简化纳甲、五行、六亲、世应、用神、互卦和错卦，再把相关爻位映射到号码权重。它仍然只是娱乐模型。
 
 ## 输出文件
 
