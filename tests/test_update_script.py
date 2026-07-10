@@ -35,7 +35,7 @@ def test_update_generate_script_can_select_ensemble_without_network():
     assert result.returncode == 0, result.stderr
     assert "1) ensemble" in result.stdout
     assert "已选择策略：ensemble" in result.stdout
-    assert result.stdout.count("红球") == 5
+    assert _ticket_line_count(result.stdout) == 5
 
 
 def test_update_generate_script_can_select_liuyao_without_network():
@@ -58,7 +58,7 @@ def test_update_generate_script_can_select_liuyao_without_network():
     assert "8) liuyao" in result.stdout
     assert "已选择策略：liuyao" in result.stdout
     assert "本卦：" in result.stdout
-    assert result.stdout.count("红球") == 5
+    assert _ticket_line_count(result.stdout) == 5
 
 
 def test_update_generate_script_can_select_advanced_liuyao_without_network():
@@ -106,3 +106,7 @@ def test_update_generate_script_uses_cached_history_when_fetch_fails(tmp_path):
     assert result.returncode == 0, result.stderr
     assert "更新失败，将使用已有缓存" in result.stdout
     assert "已选择策略：ensemble" in result.stdout
+
+
+def _ticket_line_count(output: str) -> int:
+    return sum(1 for line in output.splitlines() if line[:1].isdigit() and ". 红球 " in line)

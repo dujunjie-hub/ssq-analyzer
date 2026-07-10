@@ -56,6 +56,7 @@ class AppCoreTests(unittest.TestCase):
         self.assertTrue(any("加载历史数据：3 期" in message for message in result.logs))
         self.assertIn("上一期开奖结果：2026004", result.summary_text)
         self.assertIn("上一期预测号码：", result.summary_text)
+        self.assertIn("长期固定号码：红球 02 05 10 25 26 31  蓝球 16", result.summary_text)
         self.assertIn("本期预测号码：", result.summary_text)
         self.assertIn("命中红球", result.summary_text)
         self.assertIn("红球", result.summary_text)

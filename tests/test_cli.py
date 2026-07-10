@@ -26,7 +26,7 @@ def test_generate_command_outputs_five_tickets(capsys):
     assert exit_code == 0
     assert "娱乐参考" in output
     assert "下期开奖预计" in output
-    assert output.count("红球") == 5
+    assert _ticket_line_count(output) == 5
 
 
 def test_analyze_command_exports_csv(tmp_path):
@@ -43,7 +43,7 @@ def test_generate_accepts_ensemble_strategy(capsys):
 
     output = capsys.readouterr().out
     assert exit_code == 0
-    assert output.count("红球") == 5
+    assert _ticket_line_count(output) == 5
 
 
 def test_generate_deep_learning_prints_experimental_warning(capsys):
@@ -90,7 +90,7 @@ def test_generate_liuyao_prints_and_exports_reading_metadata(capsys, tmp_path):
     assert "本卦：" in output
     assert "动爻：" in output
     assert "变卦：" in output
-    assert output.count("红球") == 5
+    assert _ticket_line_count(output) == 5
     assert "primary_hexagram" in exported
     assert "changed_hexagram" in exported
 
@@ -103,7 +103,15 @@ def test_generate_advanced_liuyao_prints_traditional_context(capsys):
     assert "世应：" in output
     assert "用神：妻财" in output
     assert "纳甲六亲：" in output
-    assert output.count("红球") == 1
+    assert _ticket_line_count(output) == 1
+
+
+def test_generate_prints_long_term_fixed_number(capsys):
+    exit_code = main(["generate", "--strategy", "balanced", "--seed", "9", "--count", "1"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "长期固定号码：红球 02 05 10 25 26 31  蓝球 16" in output
 
 
 def test_fetch_network_failure_returns_friendly_error_without_traceback(monkeypatch, capsys):
@@ -119,3 +127,7 @@ def test_fetch_network_failure_returns_friendly_error_without_traceback(monkeypa
     assert "历史数据更新失败" in output
     assert "DNS 解析失败" in output
     assert "Traceback" not in output
+
+
+def _ticket_line_count(output: str) -> int:
+    return sum(1 for line in output.splitlines() if line[:1].isdigit() and ". 红球 " in line)

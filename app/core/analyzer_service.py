@@ -9,6 +9,7 @@ from ssq_analyzer.cli import DISCLAIMER, EXPERIMENTAL_WARNING, LIUYAO_WARNING, _
 from ssq_analyzer.data import DEFAULT_HISTORY_PATH, DataFetchError, fetch_draws, load_draws, save_draws
 from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_advanced_liuyao_tickets, generate_liuyao_tickets, generate_tickets
 from ssq_analyzer.models import Draw, Ticket
+from ssq_analyzer.personal import LONG_TERM_FIXED_TEXT
 from ssq_analyzer.schedule import format_next_draw_time
 from ssq_analyzer.stats import analysis_rows, analyze_draws
 
@@ -154,6 +155,7 @@ class AnalyzerService:
             summary_lines.extend(_previous_prediction_lines(draws, config))
         if config.strategy == "deep-learning":
             summary_lines.append(EXPERIMENTAL_WARNING)
+        summary_lines.append(LONG_TERM_FIXED_TEXT)
         metadata: dict[str, object] = {"strategy": config.strategy, "seed": config.seed}
         if reading is not None:
             summary_lines.extend(
