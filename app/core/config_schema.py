@@ -43,15 +43,14 @@ def default_schema() -> ConfigSchema:
                 label="执行类型",
                 field_type="choice",
                 default="generate",
-                choices=("generate", "analyze", "backtest", "compare", "fetch"),
+                choices=("generate", "analyze", "backtest", "compare"),
                 choice_labels={
                     "generate": "生成推荐号码",
                     "analyze": "历史数据分析",
                     "backtest": "策略回测",
                     "compare": "策略对比",
-                    "fetch": "刷新历史数据",
                 },
-                description="选择生成号码、历史分析、回测、策略对比或刷新数据。",
+                description="选择生成号码、历史分析、回测或策略对比。",
             ),
             ConfigField(
                 name="history_limit",

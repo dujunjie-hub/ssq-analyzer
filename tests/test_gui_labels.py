@@ -21,7 +21,9 @@ class GuiLabelTests(unittest.TestCase):
 
         self.assertIsInstance(command, QComboBox)
         self.assertEqual(command.itemText(command.findData("generate")), "生成推荐号码")
+        self.assertEqual(command.findData("fetch"), -1)
         self.assertEqual(strategy.itemText(strategy.findData("balanced")), "均衡模型")
+        self.assertEqual(window._refresh_button.text(), "刷新历史数据")
         self.assertEqual(window._params()["command"], "generate")
         self.assertEqual(window._params()["strategy"], "balanced")
 

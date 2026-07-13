@@ -97,6 +97,7 @@ class MainWindow(QMainWindow):
         self._summary = QTextEdit()
         self._table = QTableWidget()
         self._start_button = QPushButton("开始分析/预测")
+        self._refresh_button = QPushButton("刷新历史数据")
         self._stop_button = QPushButton("停止执行")
         self._clear_button = QPushButton("清空日志")
         self._export_button = QPushButton("导出结果")
@@ -127,10 +128,11 @@ class MainWindow(QMainWindow):
         button_layout = QGridLayout(button_box)
         button_layout.addWidget(self._start_button, 0, 0)
         button_layout.addWidget(self._stop_button, 0, 1)
-        button_layout.addWidget(self._clear_button, 1, 0)
-        button_layout.addWidget(self._export_button, 1, 1)
-        button_layout.addWidget(self._save_button, 2, 0)
-        button_layout.addWidget(self._load_button, 2, 1)
+        button_layout.addWidget(self._refresh_button, 1, 0)
+        button_layout.addWidget(self._clear_button, 1, 1)
+        button_layout.addWidget(self._export_button, 2, 0)
+        button_layout.addWidget(self._save_button, 2, 1)
+        button_layout.addWidget(self._load_button, 3, 0, 1, 2)
 
         left_layout.addWidget(script_box)
         left_layout.addWidget(params_box, 1)
@@ -159,6 +161,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self) -> None:
         self._script_combo.currentIndexChanged.connect(self._script_changed)
         self._start_button.clicked.connect(self._start)
+        self._refresh_button.clicked.connect(self._refresh_history)
         self._stop_button.clicked.connect(self._stop)
         self._clear_button.clicked.connect(self._clear_log)
         self._export_button.clicked.connect(self._export)
@@ -251,13 +254,21 @@ class MainWindow(QMainWindow):
                 control.setText("" if value is None else str(value))
 
     def _start(self) -> None:
+        self._run_script(self._current_script, self._params(), "开始执行")
+
+    def _refresh_history(self) -> None:
+        params = self._params()
+        params["command"] = "fetch"
+        self._run_script(self._registry.get("ssq"), params, "开始刷新历史数据")
+
+    def _run_script(self, script: ScriptDefinition, params: dict[str, Any], start_message: str) -> None:
         if self._thread is not None:
             return
         self._cancel_requested = False
         self._set_running(True)
-        self._append_log("开始执行")
+        self._append_log(start_message)
         self._thread = QThread()
-        self._worker = ScriptWorker(self._current_script, self._params())
+        self._worker = ScriptWorker(script, params)
         self._worker.moveToThread(self._thread)
         self._thread.started.connect(self._worker.run)
         self._worker.log.connect(self._append_log)
@@ -297,6 +308,7 @@ class MainWindow(QMainWindow):
 
     def _set_running(self, running: bool) -> None:
         self._start_button.setEnabled(not running)
+        self._refresh_button.setEnabled(not running)
         self._stop_button.setEnabled(running)
         self._save_button.setEnabled(not running)
         self._load_button.setEnabled(not running)

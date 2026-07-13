@@ -40,6 +40,7 @@ class AppCoreTests(unittest.TestCase):
         self.assertIn("balanced", schema.field("strategy").choices)
         self.assertIn("liuyao", schema.field("strategy").choices)
         self.assertIn("liuyao-advanced", schema.field("strategy").choices)
+        self.assertNotIn("fetch", schema.field("command").choices)
         self.assertEqual(schema.field("command").choice_label("generate"), "生成推荐号码")
         self.assertEqual(schema.field("strategy").choice_label("balanced"), "均衡模型")
         self.assertEqual(schema.field("strategy").choice_label("liuyao-advanced"), "高级六爻娱乐模型")
