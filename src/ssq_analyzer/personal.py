@@ -1,3 +1,8 @@
-LONG_TERM_FIXED_RED = "02 05 10 25 26 31"
-LONG_TERM_FIXED_BLUE = "16"
-LONG_TERM_FIXED_TEXT = f"长期固定号码：红球 {LONG_TERM_FIXED_RED}  蓝球 {LONG_TERM_FIXED_BLUE}"
+from ssq_analyzer.models import Ticket
+
+
+LONG_TERM_FIXED_TICKET = Ticket(red=(2, 5, 10, 25, 26, 31), blue=16)
+
+
+def with_long_term_fixed_first(tickets: list[Ticket]) -> list[Ticket]:
+    return [LONG_TERM_FIXED_TICKET, *tickets[1:]]

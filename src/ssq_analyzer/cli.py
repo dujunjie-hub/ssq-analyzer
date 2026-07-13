@@ -8,7 +8,7 @@ from ssq_analyzer.backtest import backtest_rows, compare_strategies, run_backtes
 from ssq_analyzer.data import DEFAULT_HISTORY_PATH, DataFetchError, fetch_draws, load_draws, save_draws
 from ssq_analyzer.exporters import export_rows
 from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_advanced_liuyao_tickets, generate_liuyao_tickets, generate_tickets
-from ssq_analyzer.personal import LONG_TERM_FIXED_TEXT
+from ssq_analyzer.personal import with_long_term_fixed_first
 from ssq_analyzer.schedule import format_next_draw_time
 from ssq_analyzer.stats import analysis_rows, analyze_draws
 
@@ -101,11 +101,11 @@ def _handle_generate(args: argparse.Namespace) -> int:
         reading, tickets = generate_advanced_liuyao_tickets(count=args.count, seed=args.seed)
     else:
         tickets = generate_tickets(draws, strategy=args.strategy, count=args.count, seed=args.seed)
+    tickets = with_long_term_fixed_first(tickets)
     print(DISCLAIMER)
     print(format_next_draw_time())
     if args.strategy == "deep-learning":
         print(EXPERIMENTAL_WARNING)
-    print(LONG_TERM_FIXED_TEXT)
     if reading is not None:
         print(LIUYAO_WARNING)
         print(f"本卦：{reading.primary_number} {reading.primary_hexagram}")

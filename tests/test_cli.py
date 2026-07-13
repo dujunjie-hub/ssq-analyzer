@@ -106,12 +106,13 @@ def test_generate_advanced_liuyao_prints_traditional_context(capsys):
     assert _ticket_line_count(output) == 1
 
 
-def test_generate_prints_long_term_fixed_number(capsys):
+def test_generate_uses_long_term_fixed_number_as_first_ticket(capsys):
     exit_code = main(["generate", "--strategy", "balanced", "--seed", "9", "--count", "1"])
 
     output = capsys.readouterr().out
     assert exit_code == 0
-    assert "长期固定号码：红球 02 05 10 25 26 31  蓝球 16" in output
+    assert "长期固定号码" not in output
+    assert _ticket_lines(output) == ["1. 红球 02 05 10 25 26 31  蓝球 16"]
 
 
 def test_fetch_network_failure_returns_friendly_error_without_traceback(monkeypatch, capsys):
@@ -130,4 +131,8 @@ def test_fetch_network_failure_returns_friendly_error_without_traceback(monkeypa
 
 
 def _ticket_line_count(output: str) -> int:
-    return sum(1 for line in output.splitlines() if line[:1].isdigit() and ". 红球 " in line)
+    return len(_ticket_lines(output))
+
+
+def _ticket_lines(output: str) -> list[str]:
+    return [line for line in output.splitlines() if line[:1].isdigit() and ". 红球 " in line]

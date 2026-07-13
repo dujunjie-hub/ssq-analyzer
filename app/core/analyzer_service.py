@@ -9,7 +9,7 @@ from ssq_analyzer.cli import DISCLAIMER, EXPERIMENTAL_WARNING, LIUYAO_WARNING, _
 from ssq_analyzer.data import DEFAULT_HISTORY_PATH, DataFetchError, fetch_draws, load_draws, save_draws
 from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_advanced_liuyao_tickets, generate_liuyao_tickets, generate_tickets
 from ssq_analyzer.models import Draw, Ticket
-from ssq_analyzer.personal import LONG_TERM_FIXED_TEXT
+from ssq_analyzer.personal import with_long_term_fixed_first
 from ssq_analyzer.schedule import format_next_draw_time
 from ssq_analyzer.stats import analysis_rows, analyze_draws
 
@@ -144,6 +144,7 @@ class AnalyzerService:
             reading, tickets = generate_advanced_liuyao_tickets(count=config.count, seed=config.seed)
         else:
             tickets = generate_tickets(draws, strategy=config.strategy, count=config.count, seed=config.seed)
+        tickets = with_long_term_fixed_first(tickets)
         if config.filter_duplicates:
             tickets = _dedupe_tickets(tickets)
 
@@ -155,7 +156,6 @@ class AnalyzerService:
             summary_lines.extend(_previous_prediction_lines(draws, config))
         if config.strategy == "deep-learning":
             summary_lines.append(EXPERIMENTAL_WARNING)
-        summary_lines.append(LONG_TERM_FIXED_TEXT)
         metadata: dict[str, object] = {"strategy": config.strategy, "seed": config.seed}
         if reading is not None:
             summary_lines.extend(
@@ -272,6 +272,7 @@ def _previous_prediction_lines(draws: list[Draw], config: AnalyzerConfig) -> lis
         _, tickets = generate_advanced_liuyao_tickets(count=config.count, seed=config.seed)
     else:
         tickets = generate_tickets(ordered[:-1], strategy=config.strategy, count=config.count, seed=config.seed)
+    tickets = with_long_term_fixed_first(tickets)
     if config.filter_duplicates:
         tickets = _dedupe_tickets(tickets)
 
