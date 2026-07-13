@@ -115,6 +115,16 @@ def test_generate_uses_long_term_fixed_number_as_first_ticket(capsys):
     assert _ticket_lines(output) == ["1. 红球 02 05 10 25 26 31  蓝球 16"]
 
 
+def test_generate_warns_when_latest_draw_data_is_stale(capsys, monkeypatch):
+    monkeypatch.setattr(cli, "history_staleness_warning", lambda latest_date: "开奖数据可能未更新：test")
+
+    exit_code = main(["generate", "--strategy", "balanced", "--seed", "9", "--count", "1"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "开奖数据可能未更新：test" in output
+
+
 def test_fetch_network_failure_returns_friendly_error_without_traceback(monkeypatch, capsys):
     def fail_fetch():
         raise DataFetchError("无法访问开奖数据源：DNS 解析失败")

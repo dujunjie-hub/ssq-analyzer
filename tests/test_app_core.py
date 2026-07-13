@@ -65,6 +65,14 @@ class AppCoreTests(unittest.TestCase):
         self.assertIn("命中红球", result.summary_text)
         self.assertIn("红球", result.summary_text)
 
+    def test_service_warns_when_latest_draw_data_is_stale(self):
+        service = AnalyzerService(draw_loader=sample_draws)
+        config = AnalyzerConfig(command="generate", strategy="balanced", count=1, seed=9)
+
+        result = service.run(config)
+
+        self.assertIn("开奖数据可能未更新", result.summary_text)
+
     def test_service_backtest_shows_actual_prediction_and_hit_balls(self):
         service = AnalyzerService(draw_loader=sample_draws)
         config = AnalyzerConfig(command="backtest", strategy="random", count=1, seed=5, window=3)

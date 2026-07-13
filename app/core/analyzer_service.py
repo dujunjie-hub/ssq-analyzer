@@ -10,7 +10,7 @@ from ssq_analyzer.data import DEFAULT_HISTORY_PATH, DataFetchError, fetch_draws,
 from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_advanced_liuyao_tickets, generate_liuyao_tickets, generate_tickets
 from ssq_analyzer.models import Draw, Ticket
 from ssq_analyzer.personal import with_long_term_fixed_first
-from ssq_analyzer.schedule import format_next_draw_time
+from ssq_analyzer.schedule import format_next_draw_time, history_staleness_warning
 from ssq_analyzer.stats import analysis_rows, analyze_draws
 
 
@@ -153,6 +153,9 @@ class AnalyzerService:
         if draws:
             latest = sorted(draws, key=lambda draw: draw.issue)[-1]
             summary_lines.append(f"上一期开奖结果：{latest.issue} 红球 {latest.ticket.red_text()}  蓝球 {latest.ticket.blue_text()}")
+            warning = history_staleness_warning(latest.draw_date)
+            if warning:
+                summary_lines.append(warning)
             summary_lines.extend(_previous_prediction_lines(draws, config))
         if config.strategy == "deep-learning":
             summary_lines.append(EXPERIMENTAL_WARNING)

@@ -9,7 +9,7 @@ from ssq_analyzer.data import DEFAULT_HISTORY_PATH, DataFetchError, fetch_draws,
 from ssq_analyzer.exporters import export_rows
 from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_advanced_liuyao_tickets, generate_liuyao_tickets, generate_tickets
 from ssq_analyzer.personal import with_long_term_fixed_first
-from ssq_analyzer.schedule import format_next_draw_time
+from ssq_analyzer.schedule import format_next_draw_time, history_staleness_warning
 from ssq_analyzer.stats import analysis_rows, analyze_draws
 
 
@@ -104,6 +104,10 @@ def _handle_generate(args: argparse.Namespace) -> int:
     tickets = with_long_term_fixed_first(tickets)
     print(DISCLAIMER)
     print(format_next_draw_time())
+    if draws:
+        warning = history_staleness_warning(max(draws, key=lambda draw: draw.issue).draw_date)
+        if warning:
+            print(warning)
     if args.strategy == "deep-learning":
         print(EXPERIMENTAL_WARNING)
     if reading is not None:
