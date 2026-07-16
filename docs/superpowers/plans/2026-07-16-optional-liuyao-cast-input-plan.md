@@ -51,4 +51,4 @@
 - [x] Run the full test suite with `.venv/bin/python -m pytest -q`.
 - [x] Rebuild the PyInstaller macOS application from `app/main.py` with the project data file included.
 - [x] Run the bundled executable with `--check`.
-- [ ] Inspect `git diff --check`, commit the implementation, push `main` through the configured GitHub SSH key, and verify the remote branch revision.
+- [x] Inspect `git diff --check`, commit the implementation, push `main` through the configured GitHub SSH key, and verify the remote branch revision.
