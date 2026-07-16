@@ -35,6 +35,7 @@ ssq generate --strategy deep-learning --seed 9
 - `--strategy`：选号策略。可选值包括 `random`、`weighted`、`balanced`、`hot`、`cold`、`omission`、`recent`、`ensemble`、`deep-learning`、`liuyao`、`liuyao-advanced`。
 - `--count`：每次生成几组号码，默认是 `5`。
 - `--seed`：随机种子。设置后，同样的数据和参数会生成相同结果，方便复现。
+- `--cast-input`：可选，仅 `liuyao` / `liuyao-advanced` 使用。填写一个字、短句或数字后，会稳定生成同一组六爻爻值。
 - `--format`：导出格式，可选 `csv` 或 `xlsx`。
 - `--output`：指定导出文件路径。不指定时写入 `outputs/`。
 - `--window`：回测最近多少期，默认是 `20`。
@@ -148,6 +149,7 @@ ssq generate --strategy liuyao --seed 9
 - 基于同一卦象权重生成 5 组合法号码。
 - `--seed 9` 会固定卦象和号码，方便复现。
 - 不传 `--seed` 时，每次运行会重新随机起卦。
+- 可选 `--cast-input "徐 19930810"`，以输入内容稳定起卦；留空时保持原有随机起卦方式。
 - 它不属于传统六爻断卦或科学预测，不代表中奖优势。
 
 输出示例：

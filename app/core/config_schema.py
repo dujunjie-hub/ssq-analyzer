@@ -17,6 +17,7 @@ class ConfigField:
     choice_labels: dict[str, str] | None = None
     minimum: int | None = None
     maximum: int | None = None
+    placeholder: str = ""
 
     def choice_label(self, value: str) -> str:
         if self.choice_labels is None:
@@ -97,6 +98,14 @@ def default_schema() -> ConfigSchema:
                 field_type="optional_int",
                 default=None,
                 description="对应原命令行 --seed 参数；留空则每次随机。",
+            ),
+            ConfigField(
+                name="liuyao_input",
+                label="六爻起卦输入",
+                field_type="text",
+                default="",
+                description="可选。填写一个字、一段话或几个数字；仅六爻模型使用。",
+                placeholder="可选：文字、短句或数字",
             ),
             ConfigField(
                 name="window",

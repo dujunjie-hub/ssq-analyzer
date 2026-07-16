@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import random
 from dataclasses import dataclass
 
@@ -121,6 +122,15 @@ def cast_liuyao(rng: random.Random) -> LiuyaoReading:
 
 def cast_advanced_liuyao(rng: random.Random) -> LiuyaoReading:
     return advanced_reading_from_lines(tuple(rng.choice((6, 7, 8, 9)) for _ in range(6)))
+
+
+def line_values_from_input(value: str) -> tuple[int, ...]:
+    """Derive a reproducible six-line reading from a non-empty user input."""
+    normalized = value.strip()
+    if not normalized:
+        raise ValueError("liuyao cast input must not be empty")
+    digest = hashlib.sha256(normalized.encode("utf-8")).digest()
+    return tuple(6 + byte % 4 for byte in digest[:6])
 
 
 def reading_from_lines(line_values: tuple[int, ...]) -> LiuyaoReading:

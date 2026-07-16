@@ -42,6 +42,7 @@ def build_parser() -> argparse.ArgumentParser:
     generate_parser.add_argument("--strategy", choices=sorted(STRATEGIES), default="balanced")
     generate_parser.add_argument("--count", type=int, default=DEFAULT_TICKET_COUNT)
     generate_parser.add_argument("--seed", type=int)
+    generate_parser.add_argument("--cast-input", default="", help="六爻起卦输入；可填写文字、短句或数字")
     _add_export_options(generate_parser, "tickets")
     generate_parser.set_defaults(handler=_handle_generate)
 
@@ -95,10 +96,11 @@ def _handle_analyze(args: argparse.Namespace) -> int:
 def _handle_generate(args: argparse.Namespace) -> int:
     draws = load_draws()
     reading = None
+    cast_input = args.cast_input.strip()
     if args.strategy == "liuyao":
-        reading, tickets = generate_liuyao_tickets(count=args.count, seed=args.seed)
+        reading, tickets = generate_liuyao_tickets(count=args.count, seed=args.seed, cast_input=cast_input)
     elif args.strategy == "liuyao-advanced":
-        reading, tickets = generate_advanced_liuyao_tickets(count=args.count, seed=args.seed)
+        reading, tickets = generate_advanced_liuyao_tickets(count=args.count, seed=args.seed, cast_input=cast_input)
     else:
         tickets = generate_tickets(draws, strategy=args.strategy, count=args.count, seed=args.seed)
     tickets = with_long_term_fixed_first(tickets)
@@ -112,6 +114,8 @@ def _handle_generate(args: argparse.Namespace) -> int:
         print(EXPERIMENTAL_WARNING)
     if reading is not None:
         print(LIUYAO_WARNING)
+        if cast_input:
+            print(f"起卦输入：{cast_input}")
         print(f"本卦：{reading.primary_number} {reading.primary_hexagram}")
         print(f"动爻：{reading.moving_lines_text}")
         print(f"变卦：{reading.changed_number} {reading.changed_hexagram}")
@@ -129,6 +133,7 @@ def _handle_generate(args: argparse.Namespace) -> int:
                 "index": index,
                 "strategy": args.strategy,
                 "seed": "" if args.seed is None else args.seed,
+                "cast_input": cast_input if reading is not None else "",
                 "red": ticket.red_text(),
                 "blue": ticket.blue_text(),
                 "disclaimer": DISCLAIMER,

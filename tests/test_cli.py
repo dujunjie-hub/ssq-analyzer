@@ -106,6 +106,33 @@ def test_generate_advanced_liuyao_prints_traditional_context(capsys):
     assert _ticket_line_count(output) == 1
 
 
+def test_generate_liuyao_accepts_cast_input_and_exports_it(capsys, tmp_path):
+    output_path = tmp_path / "liuyao-input.csv"
+
+    exit_code = main(
+        [
+            "generate",
+            "--strategy",
+            "liuyao",
+            "--seed",
+            "9",
+            "--cast-input",
+            "徐 19930810",
+            "--format",
+            "csv",
+            "--output",
+            str(output_path),
+        ]
+    )
+
+    output = capsys.readouterr().out
+    exported = output_path.read_text(encoding="utf-8")
+    assert exit_code == 0
+    assert "起卦输入：徐 19930810" in output
+    assert "cast_input" in exported
+    assert "徐 19930810" in exported
+
+
 def test_generate_uses_long_term_fixed_number_as_first_ticket(capsys):
     exit_code = main(["generate", "--strategy", "balanced", "--seed", "9", "--count", "1"])
 

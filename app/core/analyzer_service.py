@@ -20,6 +20,7 @@ class AnalyzerConfig:
     strategy: str = "balanced"
     count: int = DEFAULT_TICKET_COUNT
     seed: int | None = None
+    liuyao_input: str = ""
     window: int = 20
     history_limit: int = 0
     use_hot: bool = False
@@ -138,10 +139,11 @@ class AnalyzerService:
             raise ValueError(f"生成号码不支持策略：{config.strategy}")
 
         reading = None
+        cast_input = config.liuyao_input.strip()
         if config.strategy == "liuyao":
-            reading, tickets = generate_liuyao_tickets(count=config.count, seed=config.seed)
+            reading, tickets = generate_liuyao_tickets(count=config.count, seed=config.seed, cast_input=cast_input)
         elif config.strategy == "liuyao-advanced":
-            reading, tickets = generate_advanced_liuyao_tickets(count=config.count, seed=config.seed)
+            reading, tickets = generate_advanced_liuyao_tickets(count=config.count, seed=config.seed, cast_input=cast_input)
         else:
             tickets = generate_tickets(draws, strategy=config.strategy, count=config.count, seed=config.seed)
         tickets = with_long_term_fixed_first(tickets)
@@ -164,6 +166,7 @@ class AnalyzerService:
             summary_lines.extend(
                 [
                     LIUYAO_WARNING,
+                    *([f"起卦输入：{cast_input}"] if cast_input else []),
                     f"本卦：{reading.primary_number} {reading.primary_hexagram}",
                     f"动爻：{reading.moving_lines_text}",
                     f"变卦：{reading.changed_number} {reading.changed_hexagram}",
@@ -179,6 +182,7 @@ class AnalyzerService:
                     "use_god": reading.use_god,
                     "world_line": reading.world_line,
                     "responding_line": reading.responding_line,
+                    "cast_input": cast_input,
                 }
             )
 
@@ -191,6 +195,7 @@ class AnalyzerService:
                     "index": index,
                     "strategy": config.strategy,
                     "seed": "" if config.seed is None else config.seed,
+                    "cast_input": cast_input if reading is not None else "",
                     "red": ticket.red_text(),
                     "blue": ticket.blue_text(),
                     "basis": basis,
@@ -270,9 +275,9 @@ def _previous_prediction_lines(draws: list[Draw], config: AnalyzerConfig) -> lis
         return []
     latest = ordered[-1]
     if config.strategy == "liuyao":
-        _, tickets = generate_liuyao_tickets(count=config.count, seed=config.seed)
+        _, tickets = generate_liuyao_tickets(count=config.count, seed=config.seed, cast_input=config.liuyao_input)
     elif config.strategy == "liuyao-advanced":
-        _, tickets = generate_advanced_liuyao_tickets(count=config.count, seed=config.seed)
+        _, tickets = generate_advanced_liuyao_tickets(count=config.count, seed=config.seed, cast_input=config.liuyao_input)
     else:
         tickets = generate_tickets(ordered[:-1], strategy=config.strategy, count=config.count, seed=config.seed)
     tickets = with_long_term_fixed_first(tickets)

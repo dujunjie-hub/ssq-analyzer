@@ -4,7 +4,14 @@ import random
 from collections.abc import Sequence
 
 from ssq_analyzer.deep_learning import ExperimentalNeuralScorer
-from ssq_analyzer.liuyao import LiuyaoReading, cast_advanced_liuyao, cast_liuyao
+from ssq_analyzer.liuyao import (
+    LiuyaoReading,
+    advanced_reading_from_lines,
+    cast_advanced_liuyao,
+    cast_liuyao,
+    line_values_from_input,
+    reading_from_lines,
+)
 from ssq_analyzer.models import BLUE_RANGE, RED_RANGE, Draw, Ticket
 from ssq_analyzer.stats import analyze_draws
 
@@ -21,6 +28,7 @@ def generate_tickets(
     strategy: str = "balanced",
     count: int = DEFAULT_TICKET_COUNT,
     seed: int | None = None,
+    cast_input: str = "",
 ) -> list[Ticket]:
     if strategy not in STRATEGIES:
         raise ValueError(f"strategy must be one of {', '.join(sorted(STRATEGIES))}")
@@ -33,9 +41,9 @@ def generate_tickets(
     if strategy == "deep-learning":
         return _deep_learning_tickets(history, count, rng)
     if strategy == "liuyao":
-        return generate_liuyao_tickets(count=count, seed=seed)[1]
+        return generate_liuyao_tickets(count=count, seed=seed, cast_input=cast_input)[1]
     if strategy == "liuyao-advanced":
-        return generate_advanced_liuyao_tickets(count=count, seed=seed)[1]
+        return generate_advanced_liuyao_tickets(count=count, seed=seed, cast_input=cast_input)[1]
 
     tickets: list[Ticket] = []
     while len(tickets) < count:
@@ -128,11 +136,16 @@ def _deep_learning_ticket_from_weights(red_weights: list[float], blue_weights: l
     return Ticket(red=red, blue=blue)
 
 
-def generate_liuyao_tickets(count: int = DEFAULT_TICKET_COUNT, seed: int | None = None) -> tuple[LiuyaoReading, list[Ticket]]:
+def generate_liuyao_tickets(
+    count: int = DEFAULT_TICKET_COUNT,
+    seed: int | None = None,
+    cast_input: str = "",
+) -> tuple[LiuyaoReading, list[Ticket]]:
     if count < 1:
         raise ValueError("count must be greater than 0")
     rng = random.Random(seed)
-    reading = cast_liuyao(rng)
+    normalized_input = cast_input.strip()
+    reading = reading_from_lines(line_values_from_input(normalized_input)) if normalized_input else cast_liuyao(rng)
     tickets = [
         Ticket(
             red=tuple(sorted(_weighted_unique(list(RED_RANGE), reading.red_weights, 6, rng))),
@@ -143,11 +156,16 @@ def generate_liuyao_tickets(count: int = DEFAULT_TICKET_COUNT, seed: int | None 
     return reading, tickets
 
 
-def generate_advanced_liuyao_tickets(count: int = DEFAULT_TICKET_COUNT, seed: int | None = None) -> tuple[LiuyaoReading, list[Ticket]]:
+def generate_advanced_liuyao_tickets(
+    count: int = DEFAULT_TICKET_COUNT,
+    seed: int | None = None,
+    cast_input: str = "",
+) -> tuple[LiuyaoReading, list[Ticket]]:
     if count < 1:
         raise ValueError("count must be greater than 0")
     rng = random.Random(seed)
-    reading = cast_advanced_liuyao(rng)
+    normalized_input = cast_input.strip()
+    reading = advanced_reading_from_lines(line_values_from_input(normalized_input)) if normalized_input else cast_advanced_liuyao(rng)
     tickets = [
         Ticket(
             red=tuple(sorted(_weighted_unique(list(RED_RANGE), reading.red_weights, 6, rng))),

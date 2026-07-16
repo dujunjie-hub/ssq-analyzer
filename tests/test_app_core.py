@@ -37,6 +37,7 @@ class AppCoreTests(unittest.TestCase):
         self.assertIn("use_range_ratio", names)
         self.assertIn("use_consecutive", names)
         self.assertIn("filter_duplicates", names)
+        self.assertIn("liuyao_input", names)
         self.assertIn("balanced", schema.field("strategy").choices)
         self.assertIn("liuyao", schema.field("strategy").choices)
         self.assertIn("liuyao-advanced", schema.field("strategy").choices)
@@ -119,6 +120,16 @@ class AppCoreTests(unittest.TestCase):
         self.assertEqual(result.metadata["use_god"], "妻财")
         self.assertIn("世应：", result.summary_text)
         self.assertIn("纳甲六亲：", result.summary_text)
+
+    def test_service_shows_optional_liuyao_input_and_exports_it_in_rows(self):
+        service = AnalyzerService(draw_loader=sample_draws)
+        config = AnalyzerConfig(command="generate", strategy="liuyao", count=2, seed=9, liuyao_input="徐 19930810")
+
+        result = service.run(config)
+
+        self.assertIn("起卦输入：徐 19930810", result.summary_text)
+        self.assertEqual(result.metadata["cast_input"], "徐 19930810")
+        self.assertEqual(result.rows[0]["cast_input"], "徐 19930810")
 
     def test_formatter_exports_txt_csv_and_json(self):
         service = AnalyzerService(draw_loader=sample_draws)

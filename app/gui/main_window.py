@@ -219,6 +219,8 @@ class MainWindow(QMainWindow):
             control.setValue(int(field.default))
             return control
         control = QLineEdit(str(field.default))
+        if field.placeholder:
+            control.setPlaceholderText(field.placeholder)
         return control
 
     def _params(self) -> dict[str, Any]:

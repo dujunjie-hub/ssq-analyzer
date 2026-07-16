@@ -96,6 +96,7 @@ def create_default_registry(service: AnalyzerService | None = None) -> ScriptReg
             strategy=str(params.get("strategy", "balanced")),
             count=int(params.get("count", 5)),
             seed=_optional_int(params.get("seed")),
+            liuyao_input=str(params.get("liuyao_input", "")),
             window=int(params.get("window", 20)),
             history_limit=int(params.get("history_limit", 0)),
             use_hot=bool(params.get("use_hot", False)),
