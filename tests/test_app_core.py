@@ -63,6 +63,8 @@ class AppCoreTests(unittest.TestCase):
         self.assertNotIn("长期固定号码", result.summary_text)
         self.assertEqual(result.rows[0]["red"], "02 05 10 25 26 31")
         self.assertEqual(result.rows[0]["blue"], "16")
+        self.assertEqual(result.metadata["blue_coverage"], 3)
+        self.assertIn("组合覆盖：红球覆盖", result.summary_text)
         self.assertIn("命中红球", result.summary_text)
         self.assertIn("红球", result.summary_text)
 

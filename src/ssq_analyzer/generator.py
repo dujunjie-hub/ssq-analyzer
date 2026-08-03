@@ -13,6 +13,7 @@ from ssq_analyzer.liuyao import (
     reading_from_lines,
 )
 from ssq_analyzer.models import BLUE_RANGE, RED_RANGE, Draw, Ticket
+from ssq_analyzer.personal import LONG_TERM_FIXED_TICKET
 from ssq_analyzer.stats import analyze_draws
 
 
@@ -59,6 +60,78 @@ def generate_tickets(
             ticket = _random_ticket(rng)
         tickets.append(ticket)
     return tickets
+
+
+def generate_ticket_portfolio(
+    history: Sequence[Draw],
+    strategy: str = "balanced",
+    count: int = DEFAULT_TICKET_COUNT,
+    seed: int | None = None,
+    cast_input: str = "",
+) -> tuple[LiuyaoReading | None, list[Ticket]]:
+    if count < 1:
+        raise ValueError("count must be greater than 0")
+
+    candidate_count = max(count, (count - 1) * 8)
+    reading = None
+    if strategy == "liuyao":
+        reading, candidates = generate_liuyao_tickets(candidate_count, seed, cast_input)
+    elif strategy == "liuyao-advanced":
+        reading, candidates = generate_advanced_liuyao_tickets(candidate_count, seed, cast_input)
+    else:
+        candidates = generate_tickets(history, strategy, candidate_count, seed, cast_input)
+    return reading, build_ticket_portfolio(candidates, count, seed)
+
+
+def build_ticket_portfolio(candidates: Sequence[Ticket], count: int, seed: int | None = None) -> list[Ticket]:
+    if count < 1:
+        raise ValueError("count must be greater than 0")
+
+    selected = [LONG_TERM_FIXED_TICKET]
+    available = [ticket for ticket in candidates if ticket != LONG_TERM_FIXED_TICKET]
+    fallback_rng = random.Random(seed)
+    while len(selected) < count:
+        unused = [ticket for ticket in available if ticket not in selected]
+        new_blue = [ticket for ticket in unused if ticket.blue not in {chosen.blue for chosen in selected}]
+        if new_blue:
+            selected.append(min(new_blue, key=lambda ticket: _red_overlap_score(ticket, selected)))
+            continue
+        if unused and len({ticket.blue for ticket in selected}) >= len(BLUE_RANGE):
+            selected.append(min(unused, key=lambda ticket: _red_overlap_score(ticket, selected)))
+            continue
+        selected.append(_fallback_ticket(selected, fallback_rng))
+    return selected
+
+
+def ticket_coverage(tickets: Sequence[Ticket]) -> dict[str, int]:
+    red_balls = {ball for ticket in tickets for ball in ticket.red}
+    blue_balls = {ticket.blue for ticket in tickets}
+    overlaps = [
+        len(set(left.red) & set(right.red))
+        for index, left in enumerate(tickets)
+        for right in tickets[index + 1 :]
+    ]
+    return {
+        "red_coverage": len(red_balls),
+        "blue_coverage": len(blue_balls),
+        "max_red_overlap": max(overlaps, default=0),
+    }
+
+
+def _red_overlap_score(ticket: Ticket, selected: Sequence[Ticket]) -> int:
+    return sum(len(set(ticket.red) & set(chosen.red)) for chosen in selected)
+
+
+def _fallback_ticket(selected: Sequence[Ticket], rng: random.Random) -> Ticket:
+    selected_blues = {ticket.blue for ticket in selected}
+    missing_blue = next((blue for blue in BLUE_RANGE if blue not in selected_blues), None)
+    while True:
+        ticket = Ticket(
+            red=tuple(sorted(rng.sample(list(RED_RANGE), 6))),
+            blue=missing_blue if missing_blue is not None else rng.choice(list(BLUE_RANGE)),
+        )
+        if ticket not in selected:
+            return ticket
 
 
 def _random_ticket(rng: random.Random) -> Ticket:

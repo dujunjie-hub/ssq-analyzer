@@ -142,6 +142,19 @@ def test_generate_uses_long_term_fixed_number_as_first_ticket(capsys):
     assert _ticket_lines(output) == ["1. 红球 02 05 10 25 26 31  蓝球 16"]
 
 
+def test_generate_uses_ticket_coverage_for_all_requested_groups(capsys):
+    exit_code = main(["generate", "--strategy", "random", "--seed", "9", "--count", "5"])
+
+    output = capsys.readouterr().out
+    ticket_lines = _ticket_lines(output)
+    blue_balls = {line.rsplit("蓝球 ", 1)[1] for line in ticket_lines}
+
+    assert exit_code == 0
+    assert len(ticket_lines) == 5
+    assert len(blue_balls) == 5
+    assert "组合覆盖：红球覆盖" in output
+
+
 def test_generate_warns_when_latest_draw_data_is_stale(capsys, monkeypatch):
     monkeypatch.setattr(cli, "history_staleness_warning", lambda latest_date: "开奖数据可能未更新：test")
 

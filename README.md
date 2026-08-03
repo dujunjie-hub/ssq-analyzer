@@ -36,6 +36,7 @@ ssq generate --strategy deep-learning --seed 9
 - `--count`：每次生成几组号码，默认是 `5`。
 - `--seed`：随机种子。设置后，同样的数据和参数会生成相同结果，方便复现。
 - `--cast-input`：可选，仅 `liuyao` / `liuyao-advanced` 使用。填写一个字、短句或数字后，会稳定生成同一组六爻爻值。
+- 生成号码会固定第 1 组为长期号码；其余组默认补足指定数量，优先覆盖不同蓝球并减少红球重叠。
 - `--format`：导出格式，可选 `csv` 或 `xlsx`。
 - `--output`：指定导出文件路径。不指定时写入 `outputs/`。
 - `--window`：回测最近多少期，默认是 `20`。

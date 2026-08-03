@@ -7,7 +7,15 @@ from typing import Callable
 from ssq_analyzer.backtest import backtest_rows, compare_strategies, run_backtest
 from ssq_analyzer.cli import DISCLAIMER, EXPERIMENTAL_WARNING, LIUYAO_WARNING, _top_items
 from ssq_analyzer.data import DEFAULT_HISTORY_PATH, DataFetchError, fetch_draws, load_draws, save_draws
-from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_advanced_liuyao_tickets, generate_liuyao_tickets, generate_tickets
+from ssq_analyzer.generator import (
+    DEFAULT_TICKET_COUNT,
+    STRATEGIES,
+    generate_advanced_liuyao_tickets,
+    generate_liuyao_tickets,
+    generate_ticket_portfolio,
+    generate_tickets,
+    ticket_coverage,
+)
 from ssq_analyzer.models import Draw, Ticket
 from ssq_analyzer.personal import with_long_term_fixed_first
 from ssq_analyzer.schedule import format_next_draw_time, history_staleness_warning
@@ -140,15 +148,12 @@ class AnalyzerService:
 
         reading = None
         cast_input = config.liuyao_input.strip()
-        if config.strategy == "liuyao":
-            reading, tickets = generate_liuyao_tickets(count=config.count, seed=config.seed, cast_input=cast_input)
-        elif config.strategy == "liuyao-advanced":
-            reading, tickets = generate_advanced_liuyao_tickets(count=config.count, seed=config.seed, cast_input=cast_input)
-        else:
-            tickets = generate_tickets(draws, strategy=config.strategy, count=config.count, seed=config.seed)
-        tickets = with_long_term_fixed_first(tickets)
         if config.filter_duplicates:
-            tickets = _dedupe_tickets(tickets)
+            reading, tickets = generate_ticket_portfolio(draws, config.strategy, config.count, config.seed, cast_input)
+        else:
+            reading, tickets = _generate_raw_tickets(draws, config, cast_input)
+            tickets = with_long_term_fixed_first(tickets)
+        coverage = ticket_coverage(tickets)
 
         rows: list[dict[str, object]] = []
         summary_lines = [DISCLAIMER]
@@ -161,7 +166,10 @@ class AnalyzerService:
             summary_lines.extend(_previous_prediction_lines(draws, config))
         if config.strategy == "deep-learning":
             summary_lines.append(EXPERIMENTAL_WARNING)
+        if config.filter_duplicates:
+            summary_lines.append(_coverage_text(coverage))
         metadata: dict[str, object] = {"strategy": config.strategy, "seed": config.seed}
+        metadata.update(coverage)
         if reading is not None:
             summary_lines.extend(
                 [
@@ -195,6 +203,7 @@ class AnalyzerService:
                     "index": index,
                     "strategy": config.strategy,
                     "seed": "" if config.seed is None else config.seed,
+                    **coverage,
                     "cast_input": cast_input if reading is not None else "",
                     "red": ticket.red_text(),
                     "blue": ticket.blue_text(),
@@ -235,16 +244,12 @@ class AnalyzerService:
         return AnalyzerResult("compare", "策略对比", rows, logs, _strategy_summary_text(rows, config.count), {"strategies": strategies})
 
 
-def _dedupe_tickets(tickets: list[Ticket]) -> list[Ticket]:
-    seen: set[tuple[tuple[int, ...], int]] = set()
-    unique: list[Ticket] = []
-    for ticket in tickets:
-        key = (ticket.red, ticket.blue)
-        if key in seen:
-            continue
-        seen.add(key)
-        unique.append(ticket)
-    return unique
+def _generate_raw_tickets(draws: list[Draw], config: AnalyzerConfig, cast_input: str):
+    if config.strategy == "liuyao":
+        return generate_liuyao_tickets(config.count, config.seed, cast_input)
+    if config.strategy == "liuyao-advanced":
+        return generate_advanced_liuyao_tickets(config.count, config.seed, cast_input)
+    return None, generate_tickets(draws, config.strategy, config.count, config.seed, cast_input)
 
 
 def _ticket_basis(ticket: Ticket, config: AnalyzerConfig) -> str:
@@ -274,15 +279,11 @@ def _previous_prediction_lines(draws: list[Draw], config: AnalyzerConfig) -> lis
     if len(ordered) < 2:
         return []
     latest = ordered[-1]
-    if config.strategy == "liuyao":
-        _, tickets = generate_liuyao_tickets(count=config.count, seed=config.seed, cast_input=config.liuyao_input)
-    elif config.strategy == "liuyao-advanced":
-        _, tickets = generate_advanced_liuyao_tickets(count=config.count, seed=config.seed, cast_input=config.liuyao_input)
-    else:
-        tickets = generate_tickets(ordered[:-1], strategy=config.strategy, count=config.count, seed=config.seed)
-    tickets = with_long_term_fixed_first(tickets)
     if config.filter_duplicates:
-        tickets = _dedupe_tickets(tickets)
+        _, tickets = generate_ticket_portfolio(ordered[:-1], config.strategy, config.count, config.seed, config.liuyao_input)
+    else:
+        _, tickets = _generate_raw_tickets(ordered[:-1], config, config.liuyao_input)
+        tickets = with_long_term_fixed_first(tickets)
 
     lines = ["上一期预测号码："]
     for index, ticket in enumerate(tickets, start=1):
@@ -293,6 +294,14 @@ def _previous_prediction_lines(draws: list[Draw], config: AnalyzerConfig) -> lis
             f"命中红球 {red_hits or '无'}；命中蓝球 {blue_hit}"
         )
     return lines
+
+
+def _coverage_text(coverage: dict[str, int]) -> str:
+    return (
+        f"组合覆盖：红球覆盖 {coverage['red_coverage']}/33，"
+        f"蓝球覆盖 {coverage['blue_coverage']}/16，"
+        f"最大红球重叠 {coverage['max_red_overlap']} 个"
+    )
 
 
 def _advanced_liuyao_lines(reading) -> list[str]:

@@ -1,6 +1,7 @@
 from datetime import date
 
-from ssq_analyzer.generator import generate_tickets
+from ssq_analyzer.generator import generate_ticket_portfolio, generate_tickets, ticket_coverage
+from ssq_analyzer.personal import LONG_TERM_FIXED_TICKET
 from ssq_analyzer.deep_learning import ExperimentalNeuralScorer
 from ssq_analyzer.models import Draw
 
@@ -32,6 +33,18 @@ def test_weighted_strategy_returns_requested_count():
     tickets = generate_tickets(history(), strategy="weighted", count=3, seed=11)
 
     assert len(tickets) == 3
+
+
+def test_ticket_portfolio_keeps_fixed_first_and_covers_unique_blue_balls():
+    reading, tickets = generate_ticket_portfolio(history(), strategy="random", count=5, seed=11)
+    coverage = ticket_coverage(tickets)
+
+    assert reading is None
+    assert len(tickets) == 5
+    assert tickets[0] == LONG_TERM_FIXED_TICKET
+    assert len(set(tickets)) == 5
+    assert coverage["blue_coverage"] == 5
+    assert coverage["red_coverage"] >= 6
 
 
 def test_transparent_strategies_generate_five_legal_tickets_by_default():

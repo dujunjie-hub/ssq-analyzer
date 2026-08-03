@@ -7,8 +7,7 @@ from pathlib import Path
 from ssq_analyzer.backtest import backtest_rows, compare_strategies, run_backtest
 from ssq_analyzer.data import DEFAULT_HISTORY_PATH, DataFetchError, fetch_draws, load_draws, save_draws
 from ssq_analyzer.exporters import export_rows
-from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_advanced_liuyao_tickets, generate_liuyao_tickets, generate_tickets
-from ssq_analyzer.personal import with_long_term_fixed_first
+from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_ticket_portfolio, ticket_coverage
 from ssq_analyzer.schedule import format_next_draw_time, history_staleness_warning
 from ssq_analyzer.stats import analysis_rows, analyze_draws
 
@@ -95,15 +94,9 @@ def _handle_analyze(args: argparse.Namespace) -> int:
 
 def _handle_generate(args: argparse.Namespace) -> int:
     draws = load_draws()
-    reading = None
     cast_input = args.cast_input.strip()
-    if args.strategy == "liuyao":
-        reading, tickets = generate_liuyao_tickets(count=args.count, seed=args.seed, cast_input=cast_input)
-    elif args.strategy == "liuyao-advanced":
-        reading, tickets = generate_advanced_liuyao_tickets(count=args.count, seed=args.seed, cast_input=cast_input)
-    else:
-        tickets = generate_tickets(draws, strategy=args.strategy, count=args.count, seed=args.seed)
-    tickets = with_long_term_fixed_first(tickets)
+    reading, tickets = generate_ticket_portfolio(draws, args.strategy, args.count, args.seed, cast_input)
+    coverage = ticket_coverage(tickets)
     print(DISCLAIMER)
     print(format_next_draw_time())
     if draws:
@@ -125,6 +118,11 @@ def _handle_generate(args: argparse.Namespace) -> int:
             print(f"互卦：{reading.hidden_hexagram}")
             print(f"错卦：{reading.opposite_hexagram}")
             print("纳甲六亲：" + "；".join(f"{index + 1}:{line}/{relative}" for index, (line, relative) in enumerate(zip(reading.najia_lines, reading.six_relatives))))
+    print(
+        f"组合覆盖：红球覆盖 {coverage['red_coverage']}/33，"
+        f"蓝球覆盖 {coverage['blue_coverage']}/16，"
+        f"最大红球重叠 {coverage['max_red_overlap']} 个"
+    )
     rows = []
     for index, ticket in enumerate(tickets, start=1):
         print(f"{index}. 红球 {ticket.red_text()}  蓝球 {ticket.blue_text()}")
@@ -133,6 +131,7 @@ def _handle_generate(args: argparse.Namespace) -> int:
                 "index": index,
                 "strategy": args.strategy,
                 "seed": "" if args.seed is None else args.seed,
+                **coverage,
                 "cast_input": cast_input if reading is not None else "",
                 "red": ticket.red_text(),
                 "blue": ticket.blue_text(),

@@ -122,6 +122,6 @@ def default_schema() -> ConfigSchema:
             ConfigField("use_parity_ratio", "奇偶比", "bool", True, "为每组号码展示奇偶比例。"),
             ConfigField("use_range_ratio", "区间比", "bool", True, "为每组号码展示低中高区间比例。"),
             ConfigField("use_consecutive", "连号分析", "bool", True, "为每组号码展示连号数量。"),
-            ConfigField("filter_duplicates", "过滤重复结果", "bool", True, "去掉完全重复的推荐号码。"),
+            ConfigField("filter_duplicates", "组合覆盖优化", "bool", True, "补足指定组数，并优先分散蓝球和红球组合。"),
         )
     )
