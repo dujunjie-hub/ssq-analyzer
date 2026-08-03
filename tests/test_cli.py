@@ -6,10 +6,11 @@ import ssq_analyzer.cli as cli
 from ssq_analyzer.cli import main
 from ssq_analyzer.data import DataFetchError
 from ssq_analyzer.models import Draw
+from ssq_analyzer.prediction_history import load_prediction
 
 
 @pytest.fixture(autouse=True)
-def use_small_history(monkeypatch):
+def use_small_history(monkeypatch, tmp_path):
     draws = [
         Draw("2026001", date(2026, 1, 1), (1, 2, 3, 4, 5, 6), 1),
         Draw("2026002", date(2026, 1, 3), (7, 8, 9, 10, 11, 12), 2),
@@ -17,6 +18,7 @@ def use_small_history(monkeypatch):
         Draw("2026004", date(2026, 1, 7), (19, 20, 21, 22, 23, 24), 4),
     ]
     monkeypatch.setattr(cli, "load_draws", lambda: draws)
+    monkeypatch.setenv("SSQ_PREDICTION_HISTORY_PATH", str(tmp_path / "prediction-history.json"))
 
 
 def test_generate_command_outputs_five_tickets(capsys):
@@ -27,6 +29,16 @@ def test_generate_command_outputs_five_tickets(capsys):
     assert "娱乐参考" in output
     assert "下期开奖预计" in output
     assert _ticket_line_count(output) == 5
+
+
+def test_generate_command_saves_actual_tickets_for_future_comparison(monkeypatch, capsys, tmp_path):
+    history_path = tmp_path / "prediction-history.json"
+    monkeypatch.setenv("SSQ_PREDICTION_HISTORY_PATH", str(history_path))
+
+    exit_code = main(["generate", "--strategy", "liuyao", "--count", "2"])
+
+    assert exit_code == 0
+    assert len(load_prediction("2026004", history_path) or []) == 2
 
 
 def test_analyze_command_exports_csv(tmp_path):

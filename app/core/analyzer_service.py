@@ -18,6 +18,7 @@ from ssq_analyzer.generator import (
 )
 from ssq_analyzer.models import Draw, Ticket
 from ssq_analyzer.personal import with_long_term_fixed_first
+from ssq_analyzer.prediction_history import load_prediction, save_prediction
 from ssq_analyzer.schedule import format_next_draw_time, history_staleness_warning
 from ssq_analyzer.stats import analysis_rows, analyze_draws
 
@@ -60,10 +61,12 @@ class AnalyzerService:
         draw_loader: Callable[[], list[Draw]] = load_draws,
         draw_fetcher: Callable[[], list[Draw]] = fetch_draws,
         draw_saver: Callable[[list[Draw], Path], Path] = save_draws,
+        prediction_history_path: Path | None = None,
     ) -> None:
         self._draw_loader = draw_loader
         self._draw_fetcher = draw_fetcher
         self._draw_saver = draw_saver
+        self._prediction_history_path = prediction_history_path
 
     def run(self, config: AnalyzerConfig, emit_log: LogEmitter | None = None) -> AnalyzerResult:
         logs: list[str] = []
@@ -163,7 +166,7 @@ class AnalyzerService:
             warning = history_staleness_warning(latest.draw_date)
             if warning:
                 summary_lines.append(warning)
-            summary_lines.extend(_previous_prediction_lines(draws, config))
+            summary_lines.extend(_previous_prediction_lines(draws, self._prediction_history_path))
         if config.strategy == "deep-learning":
             summary_lines.append(EXPERIMENTAL_WARNING)
         if config.filter_duplicates:
@@ -217,6 +220,8 @@ class AnalyzerService:
                     "responding_line": "" if reading is None else reading.responding_line,
                 }
             )
+        if draws and not save_prediction(latest.issue, tickets, config.strategy, config.seed, self._prediction_history_path):
+            logs.append("预测记录保存失败：下期开奖后无法自动比对本次号码。")
         return AnalyzerResult(
             command="generate",
             title="生成推荐号码",
@@ -274,16 +279,14 @@ def _ticket_basis(ticket: Ticket, config: AnalyzerConfig) -> str:
     return "；".join(parts)
 
 
-def _previous_prediction_lines(draws: list[Draw], config: AnalyzerConfig) -> list[str]:
+def _previous_prediction_lines(draws: list[Draw], prediction_history_path: Path | None) -> list[str]:
     ordered = sorted(draws, key=lambda draw: draw.issue)
     if len(ordered) < 2:
         return []
     latest = ordered[-1]
-    if config.filter_duplicates:
-        _, tickets = generate_ticket_portfolio(ordered[:-1], config.strategy, config.count, config.seed, config.liuyao_input)
-    else:
-        _, tickets = _generate_raw_tickets(ordered[:-1], config, config.liuyao_input)
-        tickets = with_long_term_fixed_first(tickets)
+    tickets = load_prediction(ordered[-2].issue, prediction_history_path)
+    if not tickets:
+        return ["上一期预测记录：未找到已保存记录。"]
 
     lines = ["上一期预测号码："]
     for index, ticket in enumerate(tickets, start=1):

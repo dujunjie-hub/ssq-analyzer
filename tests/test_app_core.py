@@ -47,7 +47,7 @@ class AppCoreTests(unittest.TestCase):
         self.assertEqual(schema.field("strategy").choice_label("liuyao-advanced"), "高级六爻娱乐模型")
 
     def test_service_generates_structured_tickets_without_subprocess(self):
-        service = AnalyzerService(draw_loader=sample_draws)
+        service = AnalyzerService(draw_loader=sample_draws, prediction_history_path=self.tmp_path("predictions.json"))
         config = AnalyzerConfig(command="generate", strategy="balanced", count=3, seed=9, history_limit=3)
 
         result = service.run(config)
@@ -57,7 +57,7 @@ class AppCoreTests(unittest.TestCase):
         self.assertEqual(len(result.rows), 3)
         self.assertTrue(any("加载历史数据：3 期" in message for message in result.logs))
         self.assertIn("上一期开奖结果：2026004", result.summary_text)
-        self.assertIn("上一期预测号码：", result.summary_text)
+        self.assertIn("上一期预测记录：未找到已保存记录。", result.summary_text)
         self.assertIn("本期预测号码：", result.summary_text)
         self.assertIn("1. 红球 02 05 10 25 26 31  蓝球 16", result.summary_text)
         self.assertNotIn("长期固定号码", result.summary_text)
@@ -65,11 +65,9 @@ class AppCoreTests(unittest.TestCase):
         self.assertEqual(result.rows[0]["blue"], "16")
         self.assertEqual(result.metadata["blue_coverage"], 3)
         self.assertIn("组合覆盖：红球覆盖", result.summary_text)
-        self.assertIn("命中红球", result.summary_text)
-        self.assertIn("红球", result.summary_text)
 
     def test_service_warns_when_latest_draw_data_is_stale(self):
-        service = AnalyzerService(draw_loader=sample_draws)
+        service = AnalyzerService(draw_loader=sample_draws, prediction_history_path=self.tmp_path("predictions.json"))
         config = AnalyzerConfig(command="generate", strategy="balanced", count=1, seed=9)
 
         result = service.run(config)
@@ -77,7 +75,7 @@ class AppCoreTests(unittest.TestCase):
         self.assertIn("开奖数据可能未更新", result.summary_text)
 
     def test_service_backtest_shows_actual_prediction_and_hit_balls(self):
-        service = AnalyzerService(draw_loader=sample_draws)
+        service = AnalyzerService(draw_loader=sample_draws, prediction_history_path=self.tmp_path("predictions.json"))
         config = AnalyzerConfig(command="backtest", strategy="random", count=1, seed=5, window=3)
 
         result = service.run(config)
@@ -102,7 +100,7 @@ class AppCoreTests(unittest.TestCase):
         self.assertEqual([row["issue"] for row in result.rows], ["2026006", "2026007", "2026008", "2026009", "2026010"])
 
     def test_service_preserves_liuyao_reading_metadata(self):
-        service = AnalyzerService(draw_loader=sample_draws)
+        service = AnalyzerService(draw_loader=sample_draws, prediction_history_path=self.tmp_path("predictions.json"))
         config = AnalyzerConfig(command="generate", strategy="liuyao", count=2, seed=9)
 
         result = service.run(config)
@@ -113,7 +111,7 @@ class AppCoreTests(unittest.TestCase):
         self.assertIn("moving_lines", result.rows[0])
 
     def test_service_shows_advanced_liuyao_context(self):
-        service = AnalyzerService(draw_loader=sample_draws)
+        service = AnalyzerService(draw_loader=sample_draws, prediction_history_path=self.tmp_path("predictions.json"))
         config = AnalyzerConfig(command="generate", strategy="liuyao-advanced", count=1, seed=19930810)
 
         result = service.run(config)
@@ -124,7 +122,7 @@ class AppCoreTests(unittest.TestCase):
         self.assertIn("纳甲六亲：", result.summary_text)
 
     def test_service_shows_optional_liuyao_input_and_exports_it_in_rows(self):
-        service = AnalyzerService(draw_loader=sample_draws)
+        service = AnalyzerService(draw_loader=sample_draws, prediction_history_path=self.tmp_path("predictions.json"))
         config = AnalyzerConfig(command="generate", strategy="liuyao", count=2, seed=9, liuyao_input="徐 19930810")
 
         result = service.run(config)
@@ -134,7 +132,7 @@ class AppCoreTests(unittest.TestCase):
         self.assertEqual(result.rows[0]["cast_input"], "徐 19930810")
 
     def test_formatter_exports_txt_csv_and_json(self):
-        service = AnalyzerService(draw_loader=sample_draws)
+        service = AnalyzerService(draw_loader=sample_draws, prediction_history_path=self.tmp_path("predictions.json"))
         result = service.run(AnalyzerConfig(command="generate", strategy="random", count=2, seed=4))
 
         text = format_result_text(result)
@@ -156,6 +154,20 @@ class AppCoreTests(unittest.TestCase):
             payload = json.loads(json_output.read_text(encoding="utf-8"))
             self.assertEqual(payload["command"], "generate")
             self.assertEqual(len(payload["rows"]), 2)
+
+    def test_service_compares_saved_previous_prediction_even_when_seed_changes(self):
+        prediction_path = self.tmp_path("predictions.json")
+        first_service = AnalyzerService(draw_loader=lambda: sample_draws()[:-1], prediction_history_path=prediction_path)
+        first_result = first_service.run(AnalyzerConfig(command="generate", strategy="liuyao", count=2))
+        expected = first_result.rows[1]
+
+        next_service = AnalyzerService(draw_loader=sample_draws, prediction_history_path=prediction_path)
+        next_result = next_service.run(AnalyzerConfig(command="generate", strategy="liuyao", count=2, seed=12345))
+        previous_section = next_result.summary_text.split("本期预测号码：", maxsplit=1)[0]
+
+        self.assertIn("上一期预测号码：", previous_section)
+        self.assertIn(str(expected["red"]), previous_section)
+        self.assertIn(str(expected["blue"]), previous_section)
 
     def test_registry_runs_scripts_by_schema(self):
         registry = ScriptRegistry()

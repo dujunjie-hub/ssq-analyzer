@@ -8,6 +8,7 @@ from ssq_analyzer.backtest import backtest_rows, compare_strategies, run_backtes
 from ssq_analyzer.data import DEFAULT_HISTORY_PATH, DataFetchError, fetch_draws, load_draws, save_draws
 from ssq_analyzer.exporters import export_rows
 from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_ticket_portfolio, ticket_coverage
+from ssq_analyzer.prediction_history import save_prediction
 from ssq_analyzer.schedule import format_next_draw_time, history_staleness_warning
 from ssq_analyzer.stats import analysis_rows, analyze_draws
 
@@ -145,6 +146,8 @@ def _handle_generate(args: argparse.Namespace) -> int:
                 "responding_line": "" if reading is None else reading.responding_line,
             }
         )
+    if draws:
+        save_prediction(max(draws, key=lambda draw: draw.issue).issue, tickets, args.strategy, args.seed)
     _export_if_requested(rows, args)
     return 0
 

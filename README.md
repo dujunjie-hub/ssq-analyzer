@@ -35,6 +35,7 @@ ssq generate --strategy deep-learning --seed 9
 - `--strategy`：选号策略。可选值包括 `random`、`weighted`、`balanced`、`hot`、`cold`、`omission`、`recent`、`ensemble`、`deep-learning`、`liuyao`、`liuyao-advanced`。
 - `--count`：每次生成几组号码，默认是 `5`。
 - `--seed`：随机种子。设置后，同样的数据和参数会生成相同结果，方便复现。
+- 每次生成的实际号码会保存在本机 `~/Library/Application Support/SSQ Analyzer/prediction_history.json`；历史开奖更新后，会用保存的上一期号码做命中对比，不会因后续修改随机种子而重新推算。
 - `--cast-input`：可选，仅 `liuyao` / `liuyao-advanced` 使用。填写一个字、短句或数字后，会稳定生成同一组六爻爻值。
 - 生成号码会固定第 1 组为长期号码；其余组默认补足指定数量，优先覆盖不同蓝球并减少红球重叠。
 - `--format`：导出格式，可选 `csv` 或 `xlsx`。
