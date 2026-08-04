@@ -382,6 +382,8 @@ PYTHONPATH=src:. python3 -m cli.main generate --strategy balanced --count 5 --se
 
 GUI 使用 `app/scripts/registry.py` 作为脚本注册中心。每个脚本定义自己的名称、描述、参数 schema 和执行函数，GUI 会根据 schema 自动生成表单。
 
+内置“复式 / 胆拖预算计算器”可按预算生成不超支的合法覆盖方案，展示组合数、实际费用和一等奖理论概率；它只帮助完整覆盖组合，不提高单注中奖概率。
+
 推荐把新脚本放到：
 
 ```text

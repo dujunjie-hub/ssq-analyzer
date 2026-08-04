@@ -28,6 +28,17 @@ class GuiLabelTests(unittest.TestCase):
         self.assertEqual(window._params()["command"], "generate")
         self.assertEqual(window._params()["strategy"], "balanced")
 
+    def test_budget_calculator_form_is_available_in_the_gui(self):
+        window = MainWindow()
+
+        index = window._script_combo.findData("ssq_budget")
+        window._script_combo.setCurrentIndex(index)
+
+        self.assertGreaterEqual(index, 0)
+        self.assertEqual(window._script_combo.currentText(), "复式 / 胆拖预算计算器")
+        self.assertEqual(window._controls["mode"].currentData(), "compound")
+        self.assertEqual(window._controls["budget"].value(), 100)
+
 
 if __name__ == "__main__":
     unittest.main()

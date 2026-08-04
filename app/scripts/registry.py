@@ -6,7 +6,8 @@ from pathlib import Path
 from typing import Any, Callable
 
 from app.core.analyzer_service import AnalyzerConfig, AnalyzerResult, AnalyzerService
-from app.core.config_schema import ConfigSchema, default_schema
+from app.core.config_schema import ConfigField, ConfigSchema, default_schema
+from ssq_analyzer.budget import BudgetPlan, calculate_budget_plan
 
 
 ScriptExecute = Callable[[dict[str, Any], Callable[[str], None]], AnalyzerResult | dict[str, Any]]
@@ -118,6 +119,28 @@ def create_default_registry(service: AnalyzerService | None = None) -> ScriptReg
             execute=run_ssq,
         )
     )
+    registry.register(
+        ScriptDefinition(
+            script_id="ssq_budget",
+            name="复式 / 胆拖预算计算器",
+            description="按预算生成合法复式或胆拖覆盖方案，并展示费用和一等奖理论概率。",
+            schema=ConfigSchema(
+                fields=(
+                    ConfigField(
+                        "mode",
+                        "玩法",
+                        "choice",
+                        "compound",
+                        choices=("compound", "dantuo"),
+                        choice_labels={"compound": "复式", "dantuo": "胆拖"},
+                    ),
+                    ConfigField("budget", "预算（元）", "int", 100, minimum=0, maximum=100_000_000),
+                    ConfigField("red_dan_count", "红胆数量（仅胆拖）", "int", 1, "范围 1-5。", minimum=1, maximum=5),
+                )
+            ),
+            execute=_run_budget_calculator,
+        )
+    )
     project_root = Path(__file__).resolve().parents[2]
     registry.discover(project_root / "app" / "scripts" / "plugins")
     registry.discover(project_root / "scripts")
@@ -128,3 +151,54 @@ def _optional_int(value: Any) -> int | None:
     if value in (None, ""):
         return None
     return int(value)
+
+
+def _run_budget_calculator(params: dict[str, Any], emit_log: Callable[[str], None]) -> dict[str, Any]:
+    plan = calculate_budget_plan(
+        mode=str(params.get("mode", "compound")),
+        budget=int(params.get("budget", 0)),
+        red_dan_count=int(params.get("red_dan_count", 1)),
+    )
+    emit_log(f"已按 {plan.budget} 元预算计算 {('复式' if plan.mode == 'compound' else '胆拖')}覆盖方案")
+    scheme = f"红球 {plan.red_count} 个，蓝球 {plan.blue_count} 个"
+    if plan.mode == "dantuo":
+        scheme = f"红胆 {plan.red_dan_count} 个，红拖 {plan.red_tuo_count} 个，蓝球 {plan.blue_count} 个"
+    probability = _first_prize_probability_text(plan)
+    return {
+        "title": "复式 / 胆拖预算计算器",
+        "summary_text": "\n".join(
+            [
+                f"玩法：{'复式' if plan.mode == 'compound' else '胆拖'}",
+                f"预算：{plan.budget} 元",
+                f"推荐方案：{scheme}",
+                f"可覆盖组合：{plan.combination_count} 注",
+                f"实际费用：{plan.cost} 元，剩余预算：{plan.remaining_budget} 元",
+                f"一等奖理论概率：{probability}",
+                "说明：复式和胆拖不会改变单注概率；它们只是一次购买多个单式组合，避免手工漏掉组合。",
+            ]
+        ),
+        "rows": [
+            {
+                "玩法": "复式" if plan.mode == "compound" else "胆拖",
+                "预算（元）": plan.budget,
+                "红球数量": plan.red_count,
+                "红胆数量": plan.red_dan_count or "",
+                "红拖数量": plan.red_tuo_count or "",
+                "蓝球数量": plan.blue_count,
+                "覆盖组合数（注）": plan.combination_count,
+                "实际费用（元）": plan.cost,
+                "剩余预算（元）": plan.remaining_budget,
+                "一等奖理论概率": probability,
+            }
+        ],
+        "metadata": {"first_prize_combinations": plan.first_prize_denominator},
+    }
+
+
+def _first_prize_probability_text(plan: BudgetPlan) -> str:
+    if not plan.combination_count:
+        return "预算不足 2 元，无法覆盖有效组合"
+    return (
+        f"{plan.combination_count} / {plan.first_prize_denominator}"
+        f"（约 1 / {plan.first_prize_denominator / plan.combination_count:,.0f}，{plan.first_prize_probability:.6%}）"
+    )
