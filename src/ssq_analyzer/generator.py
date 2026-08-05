@@ -13,7 +13,7 @@ from ssq_analyzer.liuyao import (
     reading_from_lines,
 )
 from ssq_analyzer.models import BLUE_RANGE, RED_RANGE, Draw, Ticket
-from ssq_analyzer.personal import LONG_TERM_FIXED_TICKET
+from ssq_analyzer.personal import LONG_TERM_FIXED_TICKET, with_long_term_fixed_first
 from ssq_analyzer.stats import analyze_draws
 
 
@@ -81,6 +81,25 @@ def generate_ticket_portfolio(
     else:
         candidates = generate_tickets(history, strategy, candidate_count, seed, cast_input)
     return reading, build_ticket_portfolio(candidates, count, seed)
+
+
+def generate_prediction_tickets(
+    history: Sequence[Draw],
+    strategy: str = "balanced",
+    count: int = DEFAULT_TICKET_COUNT,
+    seed: int | None = None,
+    cast_input: str = "",
+    optimize_portfolio: bool = True,
+) -> tuple[LiuyaoReading | None, list[Ticket]]:
+    if optimize_portfolio:
+        return generate_ticket_portfolio(history, strategy, count, seed, cast_input)
+    if strategy == "liuyao":
+        reading, tickets = generate_liuyao_tickets(count, seed, cast_input)
+    elif strategy == "liuyao-advanced":
+        reading, tickets = generate_advanced_liuyao_tickets(count, seed, cast_input)
+    else:
+        reading, tickets = None, generate_tickets(history, strategy, count, seed, cast_input)
+    return reading, with_long_term_fixed_first(tickets)
 
 
 def build_ticket_portfolio(candidates: Sequence[Ticket], count: int, seed: int | None = None) -> list[Ticket]:

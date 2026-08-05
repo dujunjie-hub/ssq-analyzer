@@ -66,6 +66,14 @@ def test_generate_deep_learning_prints_experimental_warning(capsys):
     assert "实验策略" in output
 
 
+def test_backtest_prints_random_baseline(capsys):
+    exit_code = main(["backtest", "--strategy", "balanced", "--count", "2", "--seed", "9"])
+
+    output = capsys.readouterr().out
+    assert exit_code == 0
+    assert "随机基线：" in output
+
+
 def test_compare_command_exports_strategy_summary(tmp_path):
     output = tmp_path / "compare.csv"
 

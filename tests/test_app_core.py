@@ -84,8 +84,10 @@ class AppCoreTests(unittest.TestCase):
         self.assertIn("2026002 开奖", result.summary_text)
         self.assertIn("预测 1", result.summary_text)
         self.assertIn("命中红球", result.summary_text)
+        self.assertIn("随机基线：", result.summary_text)
         self.assertIn("red_hit_balls", result.rows[0])
         self.assertIn("blue_hit_ball", result.rows[0])
+        self.assertIn("random_baseline", result.metadata)
 
     def test_backtest_window_uses_latest_draws_not_history_limit(self):
         draws = [

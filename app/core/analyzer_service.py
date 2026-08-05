@@ -4,20 +4,16 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Callable
 
-from ssq_analyzer.backtest import backtest_rows, compare_strategies, run_backtest
+from ssq_analyzer.backtest import backtest_rows, compare_strategies, random_baseline_summary, run_backtest, summarize_backtest
 from ssq_analyzer.cli import DISCLAIMER, EXPERIMENTAL_WARNING, LIUYAO_WARNING, _top_items
 from ssq_analyzer.data import DEFAULT_HISTORY_PATH, DataFetchError, fetch_draws, load_draws, save_draws
 from ssq_analyzer.generator import (
     DEFAULT_TICKET_COUNT,
     STRATEGIES,
-    generate_advanced_liuyao_tickets,
-    generate_liuyao_tickets,
-    generate_ticket_portfolio,
-    generate_tickets,
+    generate_prediction_tickets,
     ticket_coverage,
 )
 from ssq_analyzer.models import Draw, Ticket
-from ssq_analyzer.personal import with_long_term_fixed_first
 from ssq_analyzer.prediction_history import load_prediction, save_prediction
 from ssq_analyzer.schedule import format_next_draw_time, history_staleness_warning
 from ssq_analyzer.stats import analysis_rows, analyze_draws
@@ -151,11 +147,14 @@ class AnalyzerService:
 
         reading = None
         cast_input = config.liuyao_input.strip()
-        if config.filter_duplicates:
-            reading, tickets = generate_ticket_portfolio(draws, config.strategy, config.count, config.seed, cast_input)
-        else:
-            reading, tickets = _generate_raw_tickets(draws, config, cast_input)
-            tickets = with_long_term_fixed_first(tickets)
+        reading, tickets = generate_prediction_tickets(
+            draws,
+            config.strategy,
+            config.count,
+            config.seed,
+            cast_input,
+            config.filter_duplicates,
+        )
         coverage = ticket_coverage(tickets)
 
         rows: list[dict[str, object]] = []
@@ -233,28 +232,68 @@ class AnalyzerService:
 
     def _backtest(self, draws: list[Draw], config: AnalyzerConfig, logs: list[str]) -> AnalyzerResult:
         if config.strategy == "all":
-            rows = compare_strategies(draws, strategies=sorted(STRATEGIES), count=config.count, seed=config.seed, window=config.window)
+            rows = compare_strategies(
+                draws,
+                strategies=sorted(STRATEGIES),
+                count=config.count,
+                seed=config.seed,
+                window=config.window,
+                cast_input=config.liuyao_input,
+                filter_duplicates=config.filter_duplicates,
+            )
             summary = _strategy_summary_text(rows, config.count)
             return AnalyzerResult("backtest", "全部策略回测", rows, logs, summary, {"strategy": "all"})
 
-        results = run_backtest(draws, strategy=config.strategy, count=config.count, seed=config.seed, window=config.window)
+        results = run_backtest(
+            draws,
+            strategy=config.strategy,
+            count=config.count,
+            seed=config.seed,
+            window=config.window,
+            cast_input=config.liuyao_input,
+            filter_duplicates=config.filter_duplicates,
+        )
         rows = backtest_rows(results, strategy=config.strategy)
         wins = sum(1 for row in rows if row["tier"] != "none")
-        summary = "\n".join([DISCLAIMER, f"回测期数：{len(results)}，每期生成 {config.count} 组", *_backtest_detail_lines(results), f"命中奖项记录：{wins}"])
-        return AnalyzerResult("backtest", "策略回测", rows, logs, summary, {"strategy": config.strategy, "wins": wins})
+        baseline = random_baseline_summary(
+            draws,
+            count=config.count,
+            seed=config.seed,
+            window=config.window,
+            cast_input=config.liuyao_input,
+            filter_duplicates=config.filter_duplicates,
+        )
+        strategy_summary = summarize_backtest(results, strategy=config.strategy)
+        summary = "\n".join(
+            [
+                DISCLAIMER,
+                f"回测期数：{len(results)}，每期生成 {config.count} 组",
+                *_backtest_detail_lines(results),
+                f"命中奖项记录：{wins}",
+                *_random_baseline_lines(strategy_summary, baseline),
+            ]
+        )
+        return AnalyzerResult(
+            "backtest",
+            "策略回测",
+            rows,
+            logs,
+            summary,
+            {"strategy": config.strategy, "wins": wins, "random_baseline": baseline},
+        )
 
     def _compare(self, draws: list[Draw], config: AnalyzerConfig, logs: list[str]) -> AnalyzerResult:
-        strategies = ["balanced", "hot", "cold", "omission", "recent", "ensemble", "deep-learning", "liuyao", "liuyao-advanced"]
-        rows = compare_strategies(draws, strategies=strategies, count=config.count, seed=config.seed, window=config.window)
+        strategies = ["random", "balanced", "hot", "cold", "omission", "recent", "ensemble", "deep-learning", "liuyao", "liuyao-advanced"]
+        rows = compare_strategies(
+            draws,
+            strategies=strategies,
+            count=config.count,
+            seed=config.seed,
+            window=config.window,
+            cast_input=config.liuyao_input,
+            filter_duplicates=config.filter_duplicates,
+        )
         return AnalyzerResult("compare", "策略对比", rows, logs, _strategy_summary_text(rows, config.count), {"strategies": strategies})
-
-
-def _generate_raw_tickets(draws: list[Draw], config: AnalyzerConfig, cast_input: str):
-    if config.strategy == "liuyao":
-        return generate_liuyao_tickets(config.count, config.seed, cast_input)
-    if config.strategy == "liuyao-advanced":
-        return generate_advanced_liuyao_tickets(config.count, config.seed, cast_input)
-    return None, generate_tickets(draws, config.strategy, config.count, config.seed, cast_input)
 
 
 def _ticket_basis(ticket: Ticket, config: AnalyzerConfig) -> str:
@@ -335,6 +374,16 @@ def _backtest_detail_lines(results) -> list[str]:
                 f"命中红球 {red_hits or '无'}；命中蓝球 {blue_hit}"
             )
     return lines
+
+
+def _random_baseline_lines(strategy: dict[str, object], baseline: dict[str, object]) -> list[str]:
+    blue_delta = float(strategy["blue_hit_rate"]) - float(baseline["blue_hit_rate"])
+    wins_delta = int(strategy["winning_tickets"]) - int(baseline["winning_tickets"])
+    return [
+        f"随机基线：蓝球命中率 {baseline['blue_hit_rate']}，中奖记录 {baseline['winning_tickets']}",
+        f"相对随机：蓝球命中率 {blue_delta:+.3f}，中奖记录 {wins_delta:+d}",
+        "说明：随机基线仅用于同条件对照，单次回测差异不代表预测优势。",
+    ]
 
 
 def _red_hit_text(ticket: Ticket, actual: Ticket) -> str:

@@ -4,10 +4,10 @@ import argparse
 import sys
 from pathlib import Path
 
-from ssq_analyzer.backtest import backtest_rows, compare_strategies, run_backtest
+from ssq_analyzer.backtest import backtest_rows, compare_strategies, random_baseline_summary, run_backtest, summarize_backtest
 from ssq_analyzer.data import DEFAULT_HISTORY_PATH, DataFetchError, fetch_draws, load_draws, save_draws
 from ssq_analyzer.exporters import export_rows
-from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_ticket_portfolio, ticket_coverage
+from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, STRATEGIES, generate_prediction_tickets, ticket_coverage
 from ssq_analyzer.prediction_history import save_prediction
 from ssq_analyzer.schedule import format_next_draw_time, history_staleness_warning
 from ssq_analyzer.stats import analysis_rows, analyze_draws
@@ -96,7 +96,7 @@ def _handle_analyze(args: argparse.Namespace) -> int:
 def _handle_generate(args: argparse.Namespace) -> int:
     draws = load_draws()
     cast_input = args.cast_input.strip()
-    reading, tickets = generate_ticket_portfolio(draws, args.strategy, args.count, args.seed, cast_input)
+    reading, tickets = generate_prediction_tickets(draws, args.strategy, args.count, args.seed, cast_input)
     coverage = ticket_coverage(tickets)
     print(DISCLAIMER)
     print(format_next_draw_time())
@@ -177,13 +177,14 @@ def _handle_backtest(args: argparse.Namespace) -> int:
     if rows:
         wins = sum(1 for row in rows if row["tier"] != "none")
         print(f"命中奖项记录：{wins}")
+    _print_random_baseline(summarize_backtest(results, args.strategy), random_baseline_summary(draws, args.count, args.seed, args.window))
     _export_if_requested(rows, args)
     return 0
 
 
 def _handle_compare(args: argparse.Namespace) -> int:
     draws = load_draws()
-    strategies = ["balanced", "hot", "cold", "omission", "recent", "ensemble", "deep-learning", "liuyao", "liuyao-advanced"]
+    strategies = ["random", "balanced", "hot", "cold", "omission", "recent", "ensemble", "deep-learning", "liuyao", "liuyao-advanced"]
     rows = compare_strategies(draws, strategies=strategies, count=args.count, seed=args.seed, window=args.window)
     print(DISCLAIMER)
     print(format_next_draw_time())
@@ -217,6 +218,14 @@ def _print_strategy_summaries(rows: list[dict[str, object]]) -> None:
             f"{row['strategy']}: 票数 {row['total_tickets']}，"
             f"蓝球命中率 {row['blue_hit_rate']}，中奖记录 {sum(int(row[f'tier_{tier}']) for tier in ['first', 'second', 'third', 'fourth', 'fifth', 'sixth'])}"
         )
+
+
+def _print_random_baseline(strategy: dict[str, object], baseline: dict[str, object]) -> None:
+    blue_delta = float(strategy["blue_hit_rate"]) - float(baseline["blue_hit_rate"])
+    wins_delta = int(strategy["winning_tickets"]) - int(baseline["winning_tickets"])
+    print(f"随机基线：蓝球命中率 {baseline['blue_hit_rate']}，中奖记录 {baseline['winning_tickets']}")
+    print(f"相对随机：蓝球命中率 {blue_delta:+.3f}，中奖记录 {wins_delta:+d}")
+    print("说明：随机基线仅用于同条件对照，单次回测差异不代表预测优势。")
 
 
 if __name__ == "__main__":

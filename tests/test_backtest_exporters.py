@@ -1,7 +1,8 @@
 from datetime import date
 
-from ssq_analyzer.backtest import compare_strategies, prize_tier, run_backtest, summarize_backtest
+from ssq_analyzer.backtest import compare_strategies, prize_tier, random_baseline_summary, run_backtest, summarize_backtest
 from ssq_analyzer.exporters import export_rows
+from ssq_analyzer.generator import generate_prediction_tickets
 from ssq_analyzer.models import Draw
 
 
@@ -26,6 +27,28 @@ def test_backtest_uses_only_prior_draws():
     assert [result.issue for result in results] == ["2026002", "2026003"]
     assert all(result.training_draw_count < 3 for result in results)
     assert all(len(result.generated_tickets) == 2 for result in results)
+
+
+def test_backtest_uses_the_same_portfolio_as_actual_prediction():
+    results = run_backtest(draws(), strategy="balanced", count=2, seed=5, window=1)
+    _, expected = generate_prediction_tickets(draws()[:2], strategy="balanced", count=2, seed=7)
+
+    assert [item.ticket for item in results[0].generated_tickets] == expected
+
+
+def test_backtest_can_match_prediction_without_portfolio_optimization():
+    results = run_backtest(draws(), strategy="balanced", count=2, seed=5, window=1, filter_duplicates=False)
+    _, expected = generate_prediction_tickets(draws()[:2], strategy="balanced", count=2, seed=7, optimize_portfolio=False)
+
+    assert [item.ticket for item in results[0].generated_tickets] == expected
+
+
+def test_random_baseline_uses_the_same_coverage_rules_as_backtest():
+    baseline = random_baseline_summary(draws(), count=2, seed=5, window=2)
+
+    assert baseline["strategy"] == "random"
+    assert baseline["total_tickets"] == 4
+    assert "winning_tickets" in baseline
 
 
 def test_export_rows_creates_csv_and_xlsx(tmp_path):

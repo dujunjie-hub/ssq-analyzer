@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, TRANSPARENT_STRATEGIES, generate_tickets
+from ssq_analyzer.generator import DEFAULT_TICKET_COUNT, TRANSPARENT_STRATEGIES, generate_prediction_tickets
 from ssq_analyzer.models import Draw, Ticket
 
 
@@ -51,6 +51,8 @@ def run_backtest(
     count: int = DEFAULT_TICKET_COUNT,
     seed: int | None = None,
     window: int = 20,
+    cast_input: str = "",
+    filter_duplicates: bool = True,
 ) -> list[BacktestResult]:
     ordered = sorted(draws, key=lambda draw: draw.issue)
     if len(ordered) < 2:
@@ -62,7 +64,14 @@ def run_backtest(
         target = ordered[index]
         training = ordered[:index]
         target_seed = None if seed is None else seed + index
-        tickets = generate_tickets(training, strategy=strategy, count=count, seed=target_seed)
+        _, tickets = generate_prediction_tickets(
+            training,
+            strategy=strategy,
+            count=count,
+            seed=target_seed,
+            cast_input=cast_input,
+            optimize_portfolio=filter_duplicates,
+        )
         ticket_results = [compare_ticket(ticket, target.ticket) for ticket in tickets]
         results.append(
             BacktestResult(
@@ -113,6 +122,8 @@ def summarize_backtest(results: list[BacktestResult], strategy: str) -> dict[str
         "total_tickets": 0,
         "blue_hits": 0,
         "blue_hit_rate": "0.000",
+        "winning_tickets": 0,
+        "average_red_hits": "0.000",
     }
     for tier in ["first", "second", "third", "fourth", "fifth", "sixth", "none"]:
         summary[f"tier_{tier}"] = 0
@@ -121,18 +132,43 @@ def summarize_backtest(results: list[BacktestResult], strategy: str) -> dict[str
 
     total_tickets = 0
     blue_hits = 0
+    red_hits = 0
     for result in results:
         for ticket_result in result.generated_tickets:
             total_tickets += 1
             if ticket_result.blue_hit:
                 blue_hits += 1
+            if ticket_result.tier != "none":
+                summary["winning_tickets"] = int(summary["winning_tickets"]) + 1
+            red_hits += ticket_result.red_hits
             summary[f"tier_{ticket_result.tier}"] = int(summary[f"tier_{ticket_result.tier}"]) + 1
             summary[f"red_hits_{ticket_result.red_hits}"] = int(summary[f"red_hits_{ticket_result.red_hits}"]) + 1
 
     summary["total_tickets"] = total_tickets
     summary["blue_hits"] = blue_hits
     summary["blue_hit_rate"] = f"{(blue_hits / total_tickets if total_tickets else 0):.3f}"
+    summary["average_red_hits"] = f"{(red_hits / total_tickets if total_tickets else 0):.3f}"
     return summary
+
+
+def random_baseline_summary(
+    draws: list[Draw],
+    count: int = DEFAULT_TICKET_COUNT,
+    seed: int | None = None,
+    window: int = 20,
+    cast_input: str = "",
+    filter_duplicates: bool = True,
+) -> dict[str, object]:
+    results = run_backtest(
+        draws,
+        strategy="random",
+        count=count,
+        seed=seed,
+        window=window,
+        cast_input=cast_input,
+        filter_duplicates=filter_duplicates,
+    )
+    return summarize_backtest(results, strategy="random")
 
 
 def compare_strategies(
@@ -141,11 +177,21 @@ def compare_strategies(
     count: int = DEFAULT_TICKET_COUNT,
     seed: int | None = None,
     window: int = 20,
+    cast_input: str = "",
+    filter_duplicates: bool = True,
 ) -> list[dict[str, object]]:
     selected = strategies or sorted(TRANSPARENT_STRATEGIES)
     summaries: list[dict[str, object]] = []
     for index, strategy in enumerate(selected):
         strategy_seed = None if seed is None else seed + index * 10_000
-        results = run_backtest(draws, strategy=strategy, count=count, seed=strategy_seed, window=window)
+        results = run_backtest(
+            draws,
+            strategy=strategy,
+            count=count,
+            seed=strategy_seed,
+            window=window,
+            cast_input=cast_input,
+            filter_duplicates=filter_duplicates,
+        )
         summaries.append(summarize_backtest(results, strategy=strategy))
     return summaries
